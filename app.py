@@ -2,12 +2,12 @@ import os
 import requests
 import pandas as pd
 import streamlit as st
-from google import genai
+from groq import Groq
 
 st.set_page_config(page_title="AI Iqtisodchi Agent", page_icon="📊", layout="wide")
 
-api_key = st.secrets.get("GEMINI_API_KEY") or os.environ.get("GEMINI_API_KEY")
-client = genai.Client(api_key=api_key)
+api_key = st.secrets.get("GROQ_API_KEY") or os.environ.get("GROQ_API_KEY")
+client = Groq(api_key=api_key)
 
 @st.cache_data(ttl=600)
 def get_cbu_rates():
@@ -44,26 +44,35 @@ with st.sidebar:
 
 def route_query(text):
     prompt = f"Foydalanuvchi savolini tahlil qil va faqat bitta so'z bilan javob ber (MAKRO, BIZNES, BIRJA yoki SOLIQ):\nSavol: {text}"
-    res = client.models.generate_content(model="gemini-2.5-flash", contents=prompt)
-    return res.text.strip().upper()
+    res = client.chat.completions.create(
+        model="llama-3.3-70b-versatile",
+        messages=[{"role": "user", "content": prompt}],
+        temperature=0
+    )
+    return res.choices.message.content.strip().upper()
 
 def ask_agent(category, user_text, file_context=""):
     context = ""
     if "MAKRO" in category:
-        role = "Sen O'zbekiston va jahon makroiqtisodiyoti bo'yicha tahlilchisan. Aniq raqamlar bilan javob ber."
+        role = "Sen O'zbekiston va jahon makroiqtisodiyoti bo'yicha tahlilchisan. Faqat o'zbek tilida, aniq raqamlar bilan javob ber."
         context = f"Joriy CBU valyuta kurslari: {rates}"
     elif "BIRJA" in category:
-        role = "Sen kripto va fond birjasi tahlilchisisan. Oxirida 'Bu moliyaviy maslahat emas' deb eslat."
+        role = "Sen kripto va fond birjasi tahlilchisisan. O'zbek tilida javob ber va oxirida 'Bu moliyaviy maslahat emas' deb eslat."
         context = f"Joriy kripto narxlar: {crypto}"
     elif "BIZNES" in category:
-        role = "Sen biznes-analitik va moliyaviy direktorsan (CFO). Jadval va aniq hisob-kitoblar bilan tushuntir."
+        role = "Sen biznes-analitik va moliyaviy direktorsan (CFO). O'zbek tilida, jadval va aniq hisob-kitoblar bilan tushuntir."
         context = file_context
     else:
-        role = "Sen O'zbekiston soliq qonunchiligi bo'yicha mutaxassissan. O'zR Soliq kodeksiga asoslanib javob ber."
+        role = "Sen O'zbekiston soliq qonunchiligi bo'yicha mutaxassissan. O'zR Soliq kodeksiga asoslanib o'zbek tilida javob ber."
 
-    full_prompt = f"Roling: {role}\nQo'shimcha ma'lumot: {context}\n\nSavol: {user_text}"
-    res = client.models.generate_content(model="gemini-2.5-flash", contents=full_prompt)
-    return res.text
+    res = client.chat.completions.create(
+        model="llama-3.3-70b-versatile",
+        messages=[
+            {"role": "system", "content": role},
+            {"role": "user", "content": f"Qo'shimcha ma'lumot: {context}\n\nSavol: {user_text}"}
+        ]
+    )
+    return res.choices.message.content
 
 st.header("💼 4+1 Multi-Agent Iqtisodiy Yordamchi")
 
@@ -93,4 +102,5 @@ if prompt := st.chat_input("Iqtisodiy savolingizni yozing..."):
                 st.markdown(final_text)
                 st.session_state.messages.append({"role": "assistant", "content": final_text})
             except Exception as e:
-                st.error(f"Texnik xatolik tafsiloti: {e}")
+                st.error(f"Texnik xatolik: {e}")
+                                      
