@@ -9,6 +9,30 @@ st.set_page_config(page_title="AI Iqtisodchi Agent", page_icon="📊", layout="w
 api_key = st.secrets.get("GROQ_API_KEY") or os.environ.get("GROQ_API_KEY")
 client = Groq(api_key=api_key)
 
+@st.cache_data(ttl=3600)
+def get_working_model():
+    candidates = [
+        "llama-3.1-8b-instant",
+        "openai/gpt-oss-120b",
+        "openai/gpt-oss-20b",
+        "qwen/qwen3-32b",
+        "meta-llama/llama-4-scout-17b-16e-instruct"
+    ]
+    for m in candidates:
+        try:
+            client.chat.completions.create(
+                model=m,
+                messages=[{"role": "user", "content": "hi"}],
+                max_tokens=1
+            )
+            return m
+        except Exception:
+            continue
+    models = [m.id for m in client.models.list().data if "whisper" not in m.id and "guard" not in m.id and "tts" not in m.id]
+    return models[0]
+
+ACTIVE_MODEL = get_working_model()
+
 @st.cache_data(ttl=600)
 def get_cbu_rates():
     try:
@@ -45,11 +69,11 @@ with st.sidebar:
 def route_query(text):
     prompt = f"Foydalanuvchi savolini tahlil qil va faqat bitta so'z bilan javob ber (MAKRO, BIZNES, BIRJA yoki SOLIQ):\nSavol: {text}"
     res = client.chat.completions.create(
-        model="llama-3.3-70b-versatile",
+        model=ACTIVE_MODEL,
         messages=[{"role": "user", "content": prompt}],
         temperature=0
     )
-    return res.choices.message.content.strip().upper()
+    return res.choices[0].message.content.strip().upper()
 
 def ask_agent(category, user_text, file_context=""):
     context = ""
@@ -66,7 +90,7 @@ def ask_agent(category, user_text, file_context=""):
         role = "Sen O'zbekiston soliq qonunchiligi bo'yicha mutaxassissan. O'zR Soliq kodeksiga asoslanib o'zbek tilida javob ber."
 
     res = client.chat.completions.create(
-        model="llama-3.3-70b-versatile",
+        model=ACTIVE_MODEL,
         messages=[
             {"role": "system", "content": role},
             {"role": "user", "content": f"Qo'shimcha ma'lumot: {context}\n\nSavol: {user_text}"}
@@ -103,3 +127,4 @@ if prompt := st.chat_input("Iqtisodiy savolingizni yozing..."):
                 st.session_state.messages.append({"role": "assistant", "content": final_text})
             except Exception as e:
                 st.error(f"Texnik xatolik: {e}")
+    
