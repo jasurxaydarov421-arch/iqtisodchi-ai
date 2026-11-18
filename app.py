@@ -1,4 +1,4 @@
-import os
+s
 import requests
 import pandas as pd
 import streamlit as st
@@ -103,4 +103,3 @@ if prompt := st.chat_input("Iqtisodiy savolingizni yozing..."):
                 st.session_state.messages.append({"role": "assistant", "content": final_text})
             except Exception as e:
                 st.error(f"Texnik xatolik: {e}")
-                                      
