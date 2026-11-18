@@ -96,7 +96,7 @@ def ask_agent(category, user_text, file_context=""):
             {"role": "user", "content": f"Qo'shimcha ma'lumot: {context}\n\nSavol: {user_text}"}
         ]
     )
-    return res.choices.message.content
+    return res.choices[0].message.content
 
 st.header("💼 4+1 Multi-Agent Iqtisodiy Yordamchi")
 
