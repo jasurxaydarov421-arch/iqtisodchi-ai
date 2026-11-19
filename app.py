@@ -6,7 +6,7 @@ from groq import Groq
 from pypdf import PdfReader
 from duckduckgo_search import DDGS
 
-st.set_page_config(page_title="AI Iqtisodchi Pro", page_icon="📊", layout="wide")
+st.set_page_config(page_title="AI Iqtisodchi Agent", page_icon="🎓", layout="wide")
 
 pwd_secret = st.secrets.get("APP_PASSWORD")
 if pwd_secret and not st.session_state.get("auth"):
@@ -48,7 +48,7 @@ cbu, crypto = get_rates()
 def web_search(q):
     try:
         with DDGS() as d:
-            res = list(d.text(f"{q} iqtisodiyot", max_results=3))
+            res = list(d.text(f"{q} iqtisodiyot", max_results=4))
             return "\n".join([f"- {x['title']}: {x['body']}" for x in res])
     except Exception:
         return ""
@@ -69,24 +69,24 @@ def parse_chart(text):
     return clean, fig
 
 with st.sidebar:
-    st.title("📊 AI Iqtisodchi Pro")
-    mode = st.selectbox("Yo'nalish:", ["Avtomatik (Router)", "MAKRO", "BIZNES", "BIRJA", "SOLIQ"])
-    use_web = st.checkbox("🌐 Jonli yangiliklar", value=True)
+    st.title("🎓 AI Iqtisodchi Agent")
+    mode = st.selectbox("Yo'nalishni tanlang:", ["Avtomatik (Router)", "NAZARIYA (Iqtisodchilar ta'limoti)", "MAKRO", "BIZNES", "BIRJA", "SOLIQ"])
+    use_web = st.checkbox("🌐 Internetdan ma'lumot qidirish", value=True)
     st.divider()
-    st.metric("USD (CBU)", f"{cbu.get('USD')} so'm")
+    st.metric("USD (Markaziy bank)", f"{cbu.get('USD')} so'm")
     if crypto:
         st.metric("Bitcoin", f"${crypto['bitcoin']['usd']:,}")
-    file = st.file_uploader("Fayl (Excel, CSV, PDF)", type=["xlsx", "csv", "pdf"])
-    if st.button("🗑️ Xotirani tozalash"):
+    file = st.file_uploader("Kitob yoki jadval yuklang (PDF, Excel, CSV)", type=["xlsx", "csv", "pdf"])
+    if st.button("🗑️ Suhbatni tozalash"):
         st.session_state.messages = []
         st.rerun()
 
-st.header("💼 Strategik AI Iqtisodchi Maslahatchi")
+st.header("🎓 Universal AI Iqtisodchi va Nazariyotchi")
 
 doc_info = ""
 if file:
     if file.name.endswith(".pdf"):
-        doc_info = "".join([p.extract_text() for p in PdfReader(file).pages[:12]])[:5000]
+        doc_info = "".join([p.extract_text() for p in PdfReader(file).pages[:15]])[:6000]
         st.success(f"📄 PDF yuklandi: {file.name}")
     else:
         df = pd.read_csv(file) if file.name.endswith(".csv") else pd.read_excel(file)
@@ -97,7 +97,7 @@ if file:
         doc_info = df.describe().to_string()
 
 if "messages" not in st.session_state:
-    st.session_state.messages = [{"role": "assistant", "content": "**Assalomu alaykum!** Yangi iqtisodiy munosabatlar, bozor raqamlari yoki soliq masalalarini jadvallar va grafiklar bilan tahlil qilishga tayyorman."}]
+    st.session_state.messages = [{"role": "assistant", "content": "**Assalomu alaykum! Men sizning universal AI iqtisodchi yordamchingizman.** Mashhur iqtisodchilar ta'limotlari (Adam Smit, Keyns, Fridman va boshqalar), iqtisodiy nazariyalar, makroiqtisodiy tahlil yoki biznes raqamlari bo'yicha istalgan savolingizni bering."}]
 
 for i, m in enumerate(st.session_state.messages):
     with st.chat_message(m["role"]):
@@ -105,16 +105,33 @@ for i, m in enumerate(st.session_state.messages):
         if m.get("fig"):
             st.plotly_chart(m["fig"], use_container_width=True, key=f"c_{i}")
 
-if prompt := st.chat_input("Savolingizni yozing..."):
+if prompt := st.chat_input("Iqtisodiyot yoki iqtisodchilar ta'limoti haqida so'rang..."):
     with st.chat_message("user"):
         st.markdown(prompt)
     with st.chat_message("assistant"):
         with st.spinner("Tahlil qilinmoqda..."):
             try:
-                r_res = client.chat.completions.create(model=MODEL, messages=[{"role": "user", "content": f"Faqat bitta so'z yoz (MAKRO, BIZNES, BIRJA, SOLIQ): {prompt}"}], temperature=0)
-                cat = r_res.choices[0].message.content.strip().upper() if mode == "Avtomatik (Router)" else mode
+                if mode == "Avtomatik (Router)":
+                    r_prompt = f"Savol qaysi bo'limga tegishli? Faqat bitta so'z yoz (NAZARIYA, MAKRO, BIZNES, BIRJA, SOLIQ). Agar iqtisodchilar, ta'limotlar, tarix yoki umumiy iqtisodiy tushuncha bo'lsa NAZARIYA deb yoz: {prompt}"
+                    r_res = client.chat.completions.create(model=MODEL, messages=[{"role": "user", "content": r_prompt}], temperature=0)
+                    cat = r_res.choices[0].message.content.strip().upper()
+                else:
+                    cat = mode
+
                 web = web_search(prompt) if use_web else ""
-                sys = f"Sen strategik iqtisodiy maslahatchisan ({cat}). O'zbek tilida, birinchi gapda **qalin** xulosa, keyin punktlar va jadval bilan javob ber, oxirida keyingi qadam uchun savol ber. Grafik kerak bo'lsa oxirida qo'sh: ```chart\n{{\"type\":\"bar\",\"title\":\"Nomi\",\"x_label\":\"X\",\"y_label\":\"Y\",\"x\":[\"A\",\"B\"],\"y\":[10,20]}}\n```\nKurslar: {cbu}, Kripto: {crypto}, Hujjat: {doc_info}, Yangiliklar: {web}"
+                
+                sys = f"""Sen Google Gemini darajasidagi mukammal, bilimdon AI iqtisodchi-ekspertsan (Yo'nalish: {cat}).
+                Qoidalar:
+                1. Faqat ravon va adabiy o'zbek tilida javob ber.
+                2. Birinchi gapdayoq savolning eng asosiy javobini yoki xulosasini **qalin shrift (bold)** bilan ber.
+                3. Agar iqtisodchilar (masalan, Adam Smit, Jon Meynard Keyns, Milton Fridman, Karl Marks, David Rikardo) yoki iqtisodiy maktablar (merkantilizm, klassik maktab, keynschilik, monetarizm) haqida so'ralsa: ularning asosiy g'oyalarini, mashhur asarlarini, bugungi kundagi ahamiyatini kichik sarlavhalar (###), punktlar (*) va taqqoslash jadvali (Markdown Table) ko'rinishida tushuntir.
+                4. Javob oxirida mavzuni chuqurroq o'rganish uchun 1-2 ta keyingi savol yoki yo'nalish taklif qil.
+                5. Agar raqamlarni taqqoslash yoki grafik chizish so'ralsa, oxirida aniq shu formatda JSON qo'sh:
+                ```chart
+                {{"type":"bar","title":"Sarlavha","x_label":"X","y_label":"Y","x":["A","B"],"y":[10,20]}}
+                ```
+                Qo'shimcha ma'lumotlar: Kurslar: {cbu}, Kripto: {crypto}, Yuklangan fayl: {doc_info}, Internet ma'lumotlari: {web}"""
+
                 msgs = [{"role": "system", "content": sys}] + [{"role": x["role"], "content": x["content"]} for x in st.session_state.messages[-8:]] + [{"role": "user", "content": prompt}]
                 a_res = client.chat.completions.create(model=MODEL, messages=msgs, temperature=0.5)
                 ans = a_res.choices[0].message.content
@@ -130,3 +147,4 @@ if prompt := st.chat_input("Savolingizni yozing..."):
                 st.session_state.messages += [{"role": "user", "content": prompt}, {"role": "assistant", "content": out, "fig": fig}]
             except Exception as e:
                 st.error(f"Xatolik: {e}")
+    
