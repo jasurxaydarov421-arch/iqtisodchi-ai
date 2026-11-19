@@ -62,7 +62,7 @@ def parse_chart(text):
             d = json.loads(m.group(1))
             df = pd.DataFrame({d.get("x_label", "X"): d["x"], d.get("y_label", "Y"): d["y"]})
             t = d.get("title", "Grafik")
-            fig = px.line(df, x=df.columns, y=df.columns, title=t, markers=True) if d.get("type") == "line" else px.bar(df, x=df.columns, y=df.columns, title=t, text_auto=True)
+            fig = px.line(df, x=df.columns[0], y=df.columns[1], title=t, markers=True) if d.get("type") == "line" else px.bar(df, x=df.columns[0], y=df.columns[1], title=t, text_auto=True)
             fig.update_layout(template="plotly_dark")
         except Exception:
             pass
@@ -111,11 +111,13 @@ if prompt := st.chat_input("Savolingizni yozing..."):
     with st.chat_message("assistant"):
         with st.spinner("Tahlil qilinmoqda..."):
             try:
-                cat = client.chat.completions.create(model=MODEL, messages=[{"role": "user", "content": f"Faqat bitta so'z yoz (MAKRO, BIZNES, BIRJA, SOLIQ): {prompt}"}], temperature=0).choices.message.content.strip().upper() if mode == "Avtomatik (Router)" else mode
+                r_res = client.chat.completions.create(model=MODEL, messages=[{"role": "user", "content": f"Faqat bitta so'z yoz (MAKRO, BIZNES, BIRJA, SOLIQ): {prompt}"}], temperature=0)
+                cat = r_res.choices[0].message.content.strip().upper() if mode == "Avtomatik (Router)" else mode
                 web = web_search(prompt) if use_web else ""
                 sys = f"Sen strategik iqtisodiy maslahatchisan ({cat}). O'zbek tilida, birinchi gapda **qalin** xulosa, keyin punktlar va jadval bilan javob ber, oxirida keyingi qadam uchun savol ber. Grafik kerak bo'lsa oxirida qo'sh: ```chart\n{{\"type\":\"bar\",\"title\":\"Nomi\",\"x_label\":\"X\",\"y_label\":\"Y\",\"x\":[\"A\",\"B\"],\"y\":[10,20]}}\n```\nKurslar: {cbu}, Kripto: {crypto}, Hujjat: {doc_info}, Yangiliklar: {web}"
                 msgs = [{"role": "system", "content": sys}] + [{"role": x["role"], "content": x["content"]} for x in st.session_state.messages[-8:]] + [{"role": "user", "content": prompt}]
-                ans = client.chat.completions.create(model=MODEL, messages=msgs, temperature=0.5).choices.message.content
+                a_res = client.chat.completions.create(model=MODEL, messages=msgs, temperature=0.5)
+                ans = a_res.choices[0].message.content
                 clean, fig = parse_chart(ans)
                 out = f"**📌 Bo'lim:** `{cat}`\n\n{clean}"
                 st.markdown(out)
@@ -128,4 +130,3 @@ if prompt := st.chat_input("Savolingizni yozing..."):
                 st.session_state.messages += [{"role": "user", "content": prompt}, {"role": "assistant", "content": out, "fig": fig}]
             except Exception as e:
                 st.error(f"Xatolik: {e}")
-    
