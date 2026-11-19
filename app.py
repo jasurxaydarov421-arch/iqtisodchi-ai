@@ -1,7 +1,4 @@
-import os
-import json
-import re
-import requests
+import os, json, re, requests
 import pandas as pd
 import plotly.express as px
 import streamlit as st
@@ -9,225 +6,126 @@ from groq import Groq
 from pypdf import PdfReader
 from duckduckgo_search import DDGS
 
-st.set_page_config(page_title="AI Iqtisodchi Maslahatchi", page_icon="📊", layout="wide")
+st.set_page_config(page_title="AI Iqtisodchi Pro", page_icon="📊", layout="wide")
 
-# --- 1. PAROL BILAN HIMOYA ---
-app_password = st.secrets.get("APP_PASSWORD") or os.environ.get("APP_PASSWORD")
-if app_password:
-    if "authenticated" not in st.session_state:
-        st.session_state.authenticated = False
-    if not st.session_state.authenticated:
-        st.title("🔒 Tizimga kirish")
-        pwd = st.text_input("Shaxsiy parolni kiriting:", type="password")
-        if st.button("Kirish"):
-            if pwd == app_password:
-                st.session_state.authenticated = True
-                st.rerun()
-            else:
-                st.error("Parol noto'g'ri!")
-        st.stop()
+pwd_secret = st.secrets.get("APP_PASSWORD")
+if pwd_secret and not st.session_state.get("auth"):
+    st.title("🔒 Tizimga kirish")
+    if st.button("Kirish") and st.text_input("Parol:", type="password") == pwd_secret:
+        st.session_state.auth = True
+        st.rerun()
+    st.stop()
 
-api_key = st.secrets.get("GROQ_API_KEY") or os.environ.get("GROQ_API_KEY")
-client = Groq(api_key=api_key)
+client = Groq(api_key=st.secrets.get("GROQ_API_KEY"))
 
 @st.cache_data(ttl=3600)
-def get_working_model():
-    candidates = [
-        "llama-3.3-70b-versatile",
-        "openai/gpt-oss-120b",
-        "llama-3.1-8b-instant",
-        "qwen/qwen3-32b"
-    ]
-    for m in candidates:
+def get_model():
+    for m in ["llama-3.3-70b-versatile", "openai/gpt-oss-120b", "llama-3.1-8b-instant"]:
         try:
-            client.chat.completions.create(
-                model=m,
-                messages=[{"role": "user", "content": "hi"}],
-                max_tokens=1
-            )
+            client.chat.completions.create(model=m, messages=[{"role": "user", "content": "1"}], max_tokens=1)
             return m
         except Exception:
             continue
-    models = [m.id for m in client.models.list().data if "whisper" not in m.id and "guard" not in m.id and "tts" not in m.id]
-    return models[0] if models else "llama-3.1-8b-instant"
+    return "llama-3.1-8b-instant"
 
-ACTIVE_MODEL = get_working_model()
+MODEL = get_model()
 
-# --- 2. TASHQI MA'LUMOTLAR VA JONLI QIDIRUV ---
 @st.cache_data(ttl=600)
-def get_cbu_rates():
+def get_rates():
     try:
-        res = requests.get("https://cbu.uz", timeout=5).json()
-        return {item['Ccy']: item['Rate'] for item in res if item['Ccy'] in ['USD', 'EUR', 'RUB']}
+        r = requests.get("https://cbu.uz", timeout=5).json()
+        cbu = {i['Ccy']: i['Rate'] for i in r if i['Ccy'] in ['USD', 'EUR', 'RUB']}
     except Exception:
-        return {"USD": "Ma'lumot yo'q", "EUR": "-", "RUB": "-"}
-
-@st.cache_data(ttl=300)
-def get_crypto_prices():
+        cbu = {"USD": "-"}
     try:
-        url = "https://coingecko.com"
-        return requests.get(url, timeout=5).json()
+        cr = requests.get("https://coingecko.com", timeout=5).json()
     except Exception:
-        return {}
+        cr = {}
+    return cbu, cr
 
-def search_economic_news(query):
+cbu, crypto = get_rates()
+
+def web_search(q):
     try:
-        with DDGS() as ddgs:
-            results = list(ddgs.text(f"{query} iqtisodiyot yangiliklar", max_results=4))
-            if not results:
-                return ""
-            return "\n".join([f"- {r['title']}: {r['body']}" for r in results])
+        with DDGS() as d:
+            res = list(d.text(f"{q} iqtisodiyot", max_results=3))
+            return "\n".join([f"- {x['title']}: {x['body']}" for x in res])
     except Exception:
         return ""
 
-# --- 3. GRAFIK VA RASM GENERATSIYASI ---
-def render_chart_from_response(text):
-    match = re.search(r"```chart\s*(.*?)\s*```", text, re.DOTALL)
-    clean_text = re.sub(r"```chart\s*.*?\s*```", "", text, flags=re.DOTALL).strip()
+def parse_chart(text):
+    m = re.search(r"```chart\s*(.*?)\s*```", text, re.DOTALL)
+    clean = re.sub(r"```chart\s*.*?\s*```", "", text, flags=re.DOTALL).strip()
     fig = None
-    if match:
+    if m:
         try:
-            chart_data = json.loads(match.group(1))
-            df_chart = pd.DataFrame({
-                chart_data.get("x_label", "Kategoriya"): chart_data["x"],
-                chart_data.get("y_label", "Qiymat"): chart_data["y"]
-            })
-            c_type = chart_data.get("type", "bar")
-            title = chart_data.get("title", "Iqtisodiy ko'rsatkichlar grafigi")
-            if c_type == "line":
-                fig = px.line(df_chart, x=df_chart.columns[0], y=df_chart.columns[1], title=title, markers=True)
-            elif c_type == "pie":
-                fig = px.pie(df_chart, names=df_chart.columns[0], values=df_chart.columns[1], title=title)
-            else:
-                fig = px.bar(df_chart, x=df_chart.columns[0], y=df_chart.columns[1], title=title, text_auto=True)
+            d = json.loads(m.group(1))
+            df = pd.DataFrame({d.get("x_label", "X"): d["x"], d.get("y_label", "Y"): d["y"]})
+            t = d.get("title", "Grafik")
+            fig = px.line(df, x=df.columns, y=df.columns, title=t, markers=True) if d.get("type") == "line" else px.bar(df, x=df.columns, y=df.columns, title=t, text_auto=True)
             fig.update_layout(template="plotly_dark")
         except Exception:
-            fig = None
-    return clean_text, fig
+            pass
+    return clean, fig
 
-# --- 4. YON PANEL (SIDEBAR) ---
 with st.sidebar:
     st.title("📊 AI Iqtisodchi Pro")
-    mode = st.selectbox(
-        "Yo'nalishni tanlang:",
-        [
-            "Avtomatik (Router)",
-            "1. Makroiqtisodiyot va Yangi Munosabatlar",
-            "2. Biznes tahlil va Strategiya",
-            "3. Kripto va Birja",
-            "4. Soliq maslahatchisi"
-        ]
-    )
-    use_web = st.checkbox("🌐 Internetdan yangiliklarni qidirish", value=True)
-    
+    mode = st.selectbox("Yo'nalish:", ["Avtomatik (Router)", "MAKRO", "BIZNES", "BIRJA", "SOLIQ"])
+    use_web = st.checkbox("🌐 Jonli yangiliklar", value=True)
     st.divider()
-    st.subheader("💱 Jonli kurslar")
-    rates = get_cbu_rates()
-    st.metric("USD (Markaziy bank)", f"{rates.get('USD')} so'm")
-    crypto = get_crypto_prices()
+    st.metric("USD (CBU)", f"{cbu.get('USD')} so'm")
     if crypto:
-        st.metric("Bitcoin (BTC)", f"${crypto['bitcoin']['usd']:,}")
-        st.metric("Toncoin (TON)", f"${crypto['toncoin']['usd']}")
-        
-    st.divider()
-    uploaded_file = st.file_uploader("Hujjat yuklang (Excel, CSV yoki PDF)", type=["xlsx", "csv", "pdf"])
-    
-    if st.button("🗑️ Suhbat xotirasini tozalash"):
+        st.metric("Bitcoin", f"${crypto['bitcoin']['usd']:,}")
+    file = st.file_uploader("Fayl (Excel, CSV, PDF)", type=["xlsx", "csv", "pdf"])
+    if st.button("🗑️ Xotirani tozalash"):
         st.session_state.messages = []
         st.rerun()
 
-# --- 5. ROUTER VA MASLAHATCHI AGENTLAR ---
-def route_query(text):
-    prompt = f"""Foydalanuvchi savolini tahlil qil va faqat bitta so'z bilan javob ber:
-    MAKRO - agar iqtisodiy munosabatlar, yangiliklar, valyuta, inflyatsiya, savdo haqida bo'lsa.
-    BIZNES - agar foyda, zarar, biznes strategiya, jadval tahlili haqida bo'lsa.
-    BIRJA - agar kripto, aksiyalar, treyding haqida bo'lsa.
-    SOLIQ - agar soliqlar, soliq kodeksi, PDF hujjat haqida bo'lsa.
-    Savol: {text}"""
-    res = client.chat.completions.create(
-        model=ACTIVE_MODEL,
-        messages=[{"role": "user", "content": prompt}],
-        temperature=0
-    )
-    return res.choices[0].message.content.strip().upper()
-
-def ask_advisor(category, user_text, chat_history, doc_context="", web_context=""):
-    style_guide = """
-    Sening javob berish uslubing (Juda muhim):
-    1. Birinchi gapdayoq asosiy xulosa yoki javobni **qalin shrift (bold)** bilan aniq yoz. Kirish so'zlarisiz to'g'ridan-to'g'ri maqsadga o't.
-    2. Murakkab ma'lumotlarni kichik sarlavhalar (###), punktlar (*) va taqqoslash jadvallari (Markdown Table) ko'rinishida tuzilmali ber.
-    3. Foydalanuvchi bilan haqiqiy strategik iqtisodchi hamkor sifatida suhbat qur va javob oxirida keyingi qadam uchun 1-2 ta aniq taklif ber.
-    4. Agar foydalanuvchi grafik chizishni so'rasa yoki raqamlarni taqqoslash kerak bo'lsa, javob oxirida ALBATTA quyidagi aniq JSON formatda grafik ma'lumotini qo'sh (boshqa hech qanday izohsiz):
-    ```chart
-    {"type": "bar", "title": "Grafik sarlavhasi", "x_label": "Yillar", "y_label": "Foiz", "x": ["2023", "2024", "2025"], "y": [10.5, 9.8, 8.2]}
-    ```
-    ("type" qiymati "bar", "line" yoki "pie" bo'lishi mumkin).
-    """
-    
-    if "MAKRO" in category:
-        role = f"{style_guide}\nYo'nalishing: Makroiqtisodiyot va yangi iqtisodiy munosabatlar tahlili."
-        live_info = f"Markaziy bank kurslari: {rates}"
-    elif "BIRJA" in category:
-        role = f"{style_guide}\nYo'nalishing: Kripto va fond birjalari tahlili. Oxirida 'Bu moliyaviy maslahat emas' deb eslat."
-        live_info = f"Kripto narxlar: {crypto}"
-    elif "BIZNES" in category:
-        role = f"{style_guide}\nYo'nalishing: Biznes-analitika va moliyaviy direktor (CFO)."
-        live_info = ""
-    else:
-        role = f"{style_guide}\nYo'nalishing: O'zbekiston soliq qonunchiligi va soliq optimizatsiyasi."
-        live_info = ""
-
-    system_msg = f"{role}\n\nJoriy ma'lumotlar: {live_info}\nYuklangan hujjat: {doc_context}\nInternet yangiliklari: {web_context}"
-    
-    messages_payload = [{"role": "system", "content": system_msg}]
-    for m in chat_history[-10:]:
-        messages_payload.append({"role": m["role"], "content": m["content"]})
-    messages_payload.append({"role": "user", "content": user_text})
-
-    res = client.chat.completions.create(
-        model=ACTIVE_MODEL,
-        messages=messages_payload,
-        temperature=0.5
-    )
-    return res.choices[0].message.content
-
-# --- 6. ASOSIY OYNANI CHIZISH ---
 st.header("💼 Strategik AI Iqtisodchi Maslahatchi")
 
-doc_summary = ""
-if uploaded_file:
-    if uploaded_file.name.endswith(".pdf"):
-        reader = PdfReader(uploaded_file)
-        pdf_text = "".join([page.extract_text() + "\n" for page in reader.pages[:15]])
-        doc_summary = f"PDF hujjat ({uploaded_file.name}):\n{pdf_text[:6000]}"
-        st.success(f"📄 PDF yuklandi: {uploaded_file.name}")
+doc_info = ""
+if file:
+    if file.name.endswith(".pdf"):
+        doc_info = "".join([p.extract_text() for p in PdfReader(file).pages[:12]])[:5000]
+        st.success(f"📄 PDF yuklandi: {file.name}")
     else:
-        df = pd.read_csv(uploaded_file) if uploaded_file.name.endswith('.csv') else pd.read_excel(uploaded_file)
-        with st.expander("📊 Yuklangan jadval va grafik", expanded=True):
-            st.dataframe(df.head(10))
-            num_cols = df.select_dtypes(include=['number']).columns.tolist()
-            if num_cols:
-                st.bar_chart(df[num_cols].head(20))
-        doc_summary = f"Jadval ustunlari: {list(df.columns)}. Statistika:\n{df.describe().to_string()}"
+        df = pd.read_csv(file) if file.name.endswith(".csv") else pd.read_excel(file)
+        st.dataframe(df.head(5))
+        nums = df.select_dtypes(include="number").columns.tolist()
+        if nums:
+            st.bar_chart(df[nums].head(15))
+        doc_info = df.describe().to_string()
 
 if "messages" not in st.session_state:
-    st.session_state.messages = [
-        {"role": "assistant", "content": "**Assalomu alaykum! Men sizning strategik iqtisodiy maslahatchingizman.** Yangi iqtisodiy munosabatlar, bozor raqamlari, soliqlar yoki biznes strategiyangizni jadvallar va grafiklar asosida tahlil qilishga tayyorman — bugun nimadan boshlaymiz?"}
-    ]
+    st.session_state.messages = [{"role": "assistant", "content": "**Assalomu alaykum!** Yangi iqtisodiy munosabatlar, bozor raqamlari yoki soliq masalalarini jadvallar va grafiklar bilan tahlil qilishga tayyorman."}]
 
-for idx, msg in enumerate(st.session_state.messages):
-    with st.chat_message(msg["role"]):
-        st.markdown(msg["content"])
-        if msg.get("fig"):
-            st.plotly_chart(msg["fig"], use_container_width=True, key=f"hist_chart_{idx}")
+for i, m in enumerate(st.session_state.messages):
+    with st.chat_message(m["role"]):
+        st.markdown(m["content"])
+        if m.get("fig"):
+            st.plotly_chart(m["fig"], use_container_width=True, key=f"c_{i}")
 
-if prompt := st.chat_input("Savolingizni yozing (masalan: Inflyatsiya dinamikasini grafikda chiz)..."):
+if prompt := st.chat_input("Savolingizni yozing..."):
     with st.chat_message("user"):
         st.markdown(prompt)
-        
     with st.chat_message("assistant"):
-        with st.spinner("Tahlil qilinmoqda va grafik tayyorlanmoqda..."):
+        with st.spinner("Tahlil qilinmoqda..."):
             try:
-                selected_cat = route_query(prompt) if mode == "Avtomatik (Router)" else mode.upper()
-                web_data = search_economic_news(prompt) if use_web else ""
-                raw_answer = ask_advisor(selected_cat, prompt, st.session_state.messages, doc_summary, web_data)
+                cat = client.chat.completions.create(model=MODEL, messages=[{"role": "user", "content": f"Faqat bitta so'z yoz (MAKRO, BIZNES, BIRJA, SOLIQ): {prompt}"}], temperature=0).choices.message.content.strip().upper() if mode == "Avtomatik (Router)" else mode
+                web = web_search(prompt) if use_web else ""
+                sys = f"Sen strategik iqtisodiy maslahatchisan ({cat}). O'zbek tilida, birinchi gapda **qalin** xulosa, keyin punktlar va jadval bilan javob ber, oxirida keyingi qadam uchun savol ber. Grafik kerak bo'lsa oxirida qo'sh: ```chart\n{{\"type\":\"bar\",\"title\":\"Nomi\",\"x_label\":\"X\",\"y_label\":\"Y\",\"x\":[\"A\",\"B\"],\"y\":[10,20]}}\n```\nKurslar: {cbu}, Kripto: {crypto}, Hujjat: {doc_info}, Yangiliklar: {web}"
+                msgs = [{"role": "system", "content": sys}] + [{"role": x["role"], "content": x["content"]} for x in st.session_state.messages[-8:]] + [{"role": "user", "content": prompt}]
+                ans = client.chat.completions.create(model=MODEL, messages=msgs, temperature=0.5).choices.message.content
+                clean, fig = parse_chart(ans)
+                out = f"**📌 Bo'lim:** `{cat}`\n\n{clean}"
+                st.markdown(out)
+                if fig:
+                    st.plotly_chart(fig, use_container_width=True, key="new_c")
+                    try:
+                        st.download_button("📥 Grafikni rasm (PNG) yuklab olish", fig.to_image(format="png"), "grafik.png", "image/png")
+                    except Exception:
+                        pass
+                st.session_state.messages += [{"role": "user", "content": prompt}, {"role": "assistant", "content": out, "fig": fig}]
+            except Exception as e:
+                st.error(f"Xatolik: {e}")
+    
