@@ -27,10 +27,10 @@ st.markdown("""
         background-color: #F2F0EC !important;
         border-right: 1px solid #E5E2DC !important;
     }
-    /* Claude uslubidagi bosh sarlavha */
+    /* Claude uslubidagi bosh sarlavha (Tepadan yetarli joy qoldirilgan) */
     .claude-hero {
         text-align: center;
-        margin-top: 2.5rem;
+        margin-top: 4.5rem;
         margin-bottom: 1.5rem;
     }
     .claude-icon {
@@ -39,7 +39,7 @@ st.markdown("""
         margin-bottom: 0.3rem;
     }
     .claude-title {
-        font-size: 1.9rem;
+        font-size: 1.85rem;
         font-weight: 600;
         color: #1A1918;
         letter-spacing: -0.02em;
@@ -166,7 +166,10 @@ def parse_chart(text):
             d = json.loads(m.group(1))
             df = pd.DataFrame({d.get("x_label", "X"): d["x"], d.get("y_label", "Y"): d["y"]})
             t = d.get("title", "Grafik")
-            fig = px.line(df, x=df.columns, y=df.columns, title=t, markers=True, color_discrete_sequence=["#D97757"]) if d.get("type") == "line" else px.bar(df, x=df.columns, y=df.columns, title=t, text_auto=True, color_discrete_sequence=["#D97757"])
+            if d.get("type") == "line":
+                fig = px.line(df, x=df.columns[0], y=df.columns[1], title=t, markers=True, color_discrete_sequence=["#D97757"])
+            else:
+                fig = px.bar(df, x=df.columns[0], y=df.columns[1], title=t, text_auto=True, color_discrete_sequence=["#D97757"])
             fig.update_layout(template="plotly_white", paper_bgcolor="#FFFFFF", plot_bgcolor="#FFFFFF")
         except Exception:
             pass
@@ -228,7 +231,7 @@ for i, m in enumerate(st.session_state.messages):
             st.plotly_chart(m["fig"], use_container_width=True, key=f"c_{i}")
 
 # --- PASTKI PANEL ("+" MENYU VA INPUT) ---
-col_plus, col_input = st.columns()
+col_plus, col_input = st.columns([1, 7])
 
 doc_info = ""
 with col_plus:
@@ -263,6 +266,4 @@ prompt = selected_prompt if selected_prompt else user_input
 
 # --- JAVOB GENERATSIYASI ---
 if prompt:
-    with st.chat_message("user", avatar="👤"):
-        st.markdown(prompt)
-    
+                  
