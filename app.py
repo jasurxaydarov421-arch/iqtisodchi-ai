@@ -1,6 +1,9 @@
 import os
+import json
+import re
 import requests
 import pandas as pd
+import plotly.express as px
 import streamlit as st
 from groq import Groq
 from pypdf import PdfReader
@@ -77,7 +80,32 @@ def search_economic_news(query):
     except Exception:
         return ""
 
-# --- 3. YON PANEL (SIDEBAR) ---
+# --- 3. GRAFIK VA RASM GENERATSIYASI ---
+def render_chart_from_response(text):
+    match = re.search(r"```chart\s*(.*?)\s*```", text, re.DOTALL)
+    clean_text = re.sub(r"```chart\s*.*?\s*```", "", text, flags=re.DOTALL).strip()
+    fig = None
+    if match:
+        try:
+            chart_data = json.loads(match.group(1))
+            df_chart = pd.DataFrame({
+                chart_data.get("x_label", "Kategoriya"): chart_data["x"],
+                chart_data.get("y_label", "Qiymat"): chart_data["y"]
+            })
+            c_type = chart_data.get("type", "bar")
+            title = chart_data.get("title", "Iqtisodiy ko'rsatkichlar grafigi")
+            if c_type == "line":
+                fig = px.line(df_chart, x=df_chart.columns[0], y=df_chart.columns[1], title=title, markers=True)
+            elif c_type == "pie":
+                fig = px.pie(df_chart, names=df_chart.columns[0], values=df_chart.columns[1], title=title)
+            else:
+                fig = px.bar(df_chart, x=df_chart.columns[0], y=df_chart.columns[1], title=title, text_auto=True)
+            fig.update_layout(template="plotly_dark")
+        except Exception:
+            fig = None
+    return clean_text, fig
+
+# --- 4. YON PANEL (SIDEBAR) ---
 with st.sidebar:
     st.title("📊 AI Iqtisodchi Pro")
     mode = st.selectbox(
@@ -108,7 +136,7 @@ with st.sidebar:
         st.session_state.messages = []
         st.rerun()
 
-# --- 4. ROUTER VA MASLAHATCHI AGENTLAR ---
+# --- 5. ROUTER VA MASLAHATCHI AGENTLAR ---
 def route_query(text):
     prompt = f"""Foydalanuvchi savolini tahlil qil va faqat bitta so'z bilan javob ber:
     MAKRO - agar iqtisodiy munosabatlar, yangiliklar, valyuta, inflyatsiya, savdo haqida bo'lsa.
@@ -124,28 +152,33 @@ def route_query(text):
     return res.choices[0].message.content.strip().upper()
 
 def ask_advisor(category, user_text, chat_history, doc_context="", web_context=""):
-    base_instruction = (
-        "Sen foydalanuvchining shaxsiy strategik iqtisodiy maslahatchisi va hamkorisan. "
-        "Faqat o'zbek tilida, chuqur tahliliy, mantiqiy va amaliy tavsiyalar berib suhbat olib bor. "
-        "Javob oxirida suhbatni davom ettirish uchun foydalanuvchiga 1-2 ta o'ylantiruvchi savol yoki keyingi qadam bo'yicha taklif ber."
-    )
+    style_guide = """
+    Sening javob berish uslubing (Juda muhim):
+    1. Birinchi gapdayoq asosiy xulosa yoki javobni **qalin shrift (bold)** bilan aniq yoz. Kirish so'zlarisiz to'g'ridan-to'g'ri maqsadga o't.
+    2. Murakkab ma'lumotlarni kichik sarlavhalar (###), punktlar (*) va taqqoslash jadvallari (Markdown Table) ko'rinishida tuzilmali ber.
+    3. Foydalanuvchi bilan haqiqiy strategik iqtisodchi hamkor sifatida suhbat qur va javob oxirida keyingi qadam uchun 1-2 ta aniq taklif ber.
+    4. Agar foydalanuvchi grafik chizishni so'rasa yoki raqamlarni taqqoslash kerak bo'lsa, javob oxirida ALBATTA quyidagi aniq JSON formatda grafik ma'lumotini qo'sh (boshqa hech qanday izohsiz):
+    ```chart
+    {"type": "bar", "title": "Grafik sarlavhasi", "x_label": "Yillar", "y_label": "Foiz", "x": ["2023", "2024", "2025"], "y": [10.5, 9.8, 8.2]}
+    ```
+    ("type" qiymati "bar", "line" yoki "pie" bo'lishi mumkin).
+    """
     
     if "MAKRO" in category:
-        role = f"{base_instruction} Yo'nalishing: Makroiqtisodiyot va xalqaro/mahalliy yangi iqtisodiy munosabatlar tahlili."
+        role = f"{style_guide}\nYo'nalishing: Makroiqtisodiyot va yangi iqtisodiy munosabatlar tahlili."
         live_info = f"Markaziy bank kurslari: {rates}"
     elif "BIRJA" in category:
-        role = f"{base_instruction} Yo'nalishing: Kripto va fond birjalari tahlili. Oxirida 'Bu moliyaviy maslahat emas' deb eslat."
+        role = f"{style_guide}\nYo'nalishing: Kripto va fond birjalari tahlili. Oxirida 'Bu moliyaviy maslahat emas' deb eslat."
         live_info = f"Kripto narxlar: {crypto}"
     elif "BIZNES" in category:
-        role = f"{base_instruction} Yo'nalishing: Biznes-analitika va moliyaviy direktor (CFO). Aniq hisob-kitob va tavsiyalar ber."
+        role = f"{style_guide}\nYo'nalishing: Biznes-analitika va moliyaviy direktor (CFO)."
         live_info = ""
     else:
-        role = f"{base_instruction} Yo'nalishing: O'zbekiston soliq qonunchiligi va soliq optimizatsiyasi."
+        role = f"{style_guide}\nYo'nalishing: O'zbekiston soliq qonunchiligi va soliq optimizatsiyasi."
         live_info = ""
 
-    system_msg = f"{role}\n\nJoriy ma'lumotlar: {live_info}\nYuklangan hujjat ma'lumotlari: {doc_context}\nInternetdan topilgan so'nggi yangiliklar: {web_context}"
+    system_msg = f"{role}\n\nJoriy ma'lumotlar: {live_info}\nYuklangan hujjat: {doc_context}\nInternet yangiliklari: {web_context}"
     
-    # Oxirgi 10 ta xabarni xotira sifatida uzatish
     messages_payload = [{"role": "system", "content": system_msg}]
     for m in chat_history[-10:]:
         messages_payload.append({"role": m["role"], "content": m["content"]})
@@ -154,54 +187,47 @@ def ask_advisor(category, user_text, chat_history, doc_context="", web_context="
     res = client.chat.completions.create(
         model=ACTIVE_MODEL,
         messages=messages_payload,
-        temperature=0.6
+        temperature=0.5
     )
     return res.choices[0].message.content
 
-# --- 5. ASOSIY OYNANI CHIZISH ---
+# --- 6. ASOSIY OYNANI CHIZISH ---
 st.header("💼 Strategik AI Iqtisodchi Maslahatchi")
 
 doc_summary = ""
 if uploaded_file:
     if uploaded_file.name.endswith(".pdf"):
         reader = PdfReader(uploaded_file)
-        pdf_text = ""
-        for page in reader.pages[:15]:  # Dastlabki 15 sahifani o'qish
-            pdf_text += page.extract_text() + "\n"
-        doc_summary = f"PDF hujjat ({uploaded_file.name}) matni:\n{pdf_text[:6000]}"
-        st.success(f"📄 PDF hujjat yuklandi: {uploaded_file.name} ({len(reader.pages)} sahifa)")
+        pdf_text = "".join([page.extract_text() + "\n" for page in reader.pages[:15]])
+        doc_summary = f"PDF hujjat ({uploaded_file.name}):\n{pdf_text[:6000]}"
+        st.success(f"📄 PDF yuklandi: {uploaded_file.name}")
     else:
         df = pd.read_csv(uploaded_file) if uploaded_file.name.endswith('.csv') else pd.read_excel(uploaded_file)
-        with st.expander("📊 Yuklangan jadval va avtomatik grafikni ko'rish", expanded=True):
+        with st.expander("📊 Yuklangan jadval va grafik", expanded=True):
             st.dataframe(df.head(10))
             num_cols = df.select_dtypes(include=['number']).columns.tolist()
             if num_cols:
                 st.bar_chart(df[num_cols].head(20))
-        doc_summary = f"Jadval ustunlari: {list(df.columns)}. Statistika:\n{df.describe().to_string()}\nBirinchi qatorlar:\n{df.head(10).to_string()}"
+        doc_summary = f"Jadval ustunlari: {list(df.columns)}. Statistika:\n{df.describe().to_string()}"
 
 if "messages" not in st.session_state:
     st.session_state.messages = [
-        {"role": "assistant", "content": "Assalomu alaykum! Men sizning shaxsiy iqtisodiy maslahatchingizman. Bugun yangi iqtisodiy munosabatlar, bozor tendensiyalari, biznesingiz raqamlari yoki soliq masalalaridan qaysi birini tahlil qilamiz?"}
+        {"role": "assistant", "content": "**Assalomu alaykum! Men sizning strategik iqtisodiy maslahatchingizman.** Yangi iqtisodiy munosabatlar, bozor raqamlari, soliqlar yoki biznes strategiyangizni jadvallar va grafiklar asosida tahlil qilishga tayyorman — bugun nimadan boshlaymiz?"}
     ]
 
-for msg in st.session_state.messages:
+for idx, msg in enumerate(st.session_state.messages):
     with st.chat_message(msg["role"]):
         st.markdown(msg["content"])
+        if msg.get("fig"):
+            st.plotly_chart(msg["fig"], use_container_width=True, key=f"hist_chart_{idx}")
 
-if prompt := st.chat_input("Fikringizni yoki savolingizni yozing..."):
+if prompt := st.chat_input("Savolingizni yozing (masalan: Inflyatsiya dinamikasini grafikda chiz)..."):
     with st.chat_message("user"):
         st.markdown(prompt)
         
     with st.chat_message("assistant"):
-        with st.spinner("Yangiliklar o'rganilmoqda va tahlil tayyorlanmoqda..."):
+        with st.spinner("Tahlil qilinmoqda va grafik tayyorlanmoqda..."):
             try:
                 selected_cat = route_query(prompt) if mode == "Avtomatik (Router)" else mode.upper()
                 web_data = search_economic_news(prompt) if use_web else ""
-                answer = ask_advisor(selected_cat, prompt, st.session_state.messages, doc_summary, web_data)
-                final_text = f"**📌 Bo'lim:** `{selected_cat}`\n\n{answer}"
-                st.markdown(final_text)
-                st.session_state.messages.append({"role": "user", "content": prompt})
-                st.session_state.messages.append({"role": "assistant", "content": final_text})
-            except Exception as e:
-                st.error(f"Texnik xatolik: {e}")
                 
