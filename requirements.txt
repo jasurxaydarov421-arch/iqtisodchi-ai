@@ -5,3 +5,5 @@ openpyxl
 requests
 pypdf
 duckduckgo-search
+plotly
+kaleido
