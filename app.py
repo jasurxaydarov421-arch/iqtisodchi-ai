@@ -6,18 +6,19 @@ from groq import Groq
 from pypdf import PdfReader
 from duckduckgo_search import DDGS
 
-st.set_page_config(page_title="AI Iqtisodchi Agent", page_icon="✨", layout="centered")
+st.set_page_config(page_title="AI Agent — Iqtisodiy Yordamchi", page_icon="✨", layout="centered")
 
-# --- MAXSUS GEMINI USLUBIDAGI DIZAYN (CSS) ---
+# --- GEMINI USLUBIDAGI DIZAYN ---
 st.markdown("""
 <style>
     .hero-title {
         font-size: 2.2rem;
-        font-weight: 700;
+        font-weight: 800;
         background: -webkit-linear-gradient(45deg, #4285F4, #9B72CB, #D96570);
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
         margin-bottom: 0.2rem;
+        text-transform: uppercase;
     }
     .hero-sub {
         font-size: 1.15rem;
@@ -40,13 +41,15 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-pwd_secret = st.secrets.get("APP_PASSWORD")
-if pwd_secret and not st.session_state.get("auth"):
-    st.title("🔒 Tizimga kirish")
-    if st.button("Kirish") and st.text_input("Parol:", type="password") == pwd_secret:
-        st.session_state.auth = True
-        st.rerun()
-    st.stop()
+# --- GOOGLE AKKAUNT ORQALI KIRISH (AGAR SECRETS DA SOZLANGAN BO'LSA) ---
+has_google_auth = "auth" in st.secrets and "google" in st.secrets["auth"]
+if has_google_auth:
+    if not st.user.is_logged_in:
+        st.markdown('<div class="hero-title">SALOM MEN AI AGENT</div>', unsafe_allow_html=True)
+        st.markdown('<div class="hero-sub">Shaxsiy va maxfiy chatni boshlash uchun Google akkauntingiz bilan kiring</div>', unsafe_allow_html=True)
+        if st.button("🔐 Google akkaunt orqali kirish"):
+            st.login("google")
+        st.stop()
 
 client = Groq(api_key=st.secrets.get("GROQ_API_KEY"))
 
@@ -94,15 +97,22 @@ def parse_chart(text):
             d = json.loads(m.group(1))
             df = pd.DataFrame({d.get("x_label", "X"): d["x"], d.get("y_label", "Y"): d["y"]})
             t = d.get("title", "Grafik")
-            fig = px.line(df, x=df.columns[0], y=df.columns[1], title=t, markers=True) if d.get("type") == "line" else px.bar(df, x=df.columns[0], y=df.columns[1], title=t, text_auto=True)
+            fig = px.line(df, x=df.columns, y=df.columns, title=t, markers=True) if d.get("type") == "line" else px.bar(df, x=df.columns, y=df.columns, title=t, text_auto=True)
             fig.update_layout(template="plotly_dark")
         except Exception:
             pass
     return clean, fig
 
-# --- YON PANEL ---
+# --- YON PANEL (HAR BIR FOYDALANUVCHI UCHUN ALOHIDA SESSIYA) ---
 with st.sidebar:
-    st.title("✨ AI Iqtisodchi")
+    st.title("✨ AI AGENT")
+    if has_google_auth and st.user.is_logged_in:
+        st.caption(f"👤 {st.user.name}")
+        if st.button("🚪 Chiqish (Logout)"):
+            st.logout()
+    else:
+        st.caption("🔒 Shaxsiy va maxfiy chat sessiyasi")
+        
     mode = st.selectbox("Yo'nalish:", ["Avtomatik (Router)", "IQTISODIY TA'LIMOTLAR TARIXI", "BIZNES QURISH VA TAHLIL", "MAKROIQTISODIYOT", "KRIPTO VA BIRJA", "SOLIQ MASLAHATCHISI"])
     use_web = st.checkbox("🌐 Internetdan jonli qidiruv", value=True)
     st.divider()
@@ -110,7 +120,7 @@ with st.sidebar:
     if crypto:
         st.metric("Bitcoin", f"${crypto['bitcoin']['usd']:,}")
     file = st.file_uploader("Hujjat yuklang (PDF, Excel, CSV)", type=["xlsx", "csv", "pdf"])
-    if st.button("➕ Yangi suhbat boshlash"):
+    if st.button("➕ Yangi chat ochish"):
         st.session_state.messages = []
         st.rerun()
 
@@ -125,15 +135,16 @@ if file:
             st.dataframe(df.head(5))
         doc_info = df.describe().to_string()
 
+# Har bir brauzer/foydalanuvchi uchun alohida izolyatsiya qilingan chat xotirasi
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
 selected_prompt = None
 
-# --- BOSH EKRAN (GEMINI USLUBIDAGI TEZKOR KARTOCHKALAR) ---
+# --- BOSH EKRAN ---
 if len(st.session_state.messages) == 0:
-    st.markdown('<div class="hero-title">Salom, Jasur 👋</div>', unsafe_allow_html=True)
-    st.markdown('<div class="hero-sub">Bugun qaysi iqtisodiy mavzuni tahlil qilamiz?</div>', unsafe_allow_html=True)
+    st.markdown('<div class="hero-title">SALOM MEN AI AGENT</div>', unsafe_allow_html=True)
+    st.markdown('<div class="hero-sub">Sizning shaxsiy va maxfiy iqtisodiy yordamchingiz. Nimadan boshlaymiz?</div>', unsafe_allow_html=True)
     
     col1, col2 = st.columns(2)
     with col1:
@@ -147,14 +158,14 @@ if len(st.session_state.messages) == 0:
         if st.button("⚖️ Soliqlar va Birja tahlili\n\nQQS, foyda solig'i va kripto bozori holati"):
             selected_prompt = "O'zbekistonda tadbirkorlar uchun asosiy soliq rejimlari (aylanma soliq va QQS) farqini jadvalda taqqoslab ber."
 
-# --- CHAT TARIXI ---
+# --- CHAT TARIXI (FAQAT SHU FOYDALANUVCHIGA KO'RINADI) ---
 for i, m in enumerate(st.session_state.messages):
     with st.chat_message(m["role"]):
         st.markdown(m["content"])
         if m.get("fig"):
             st.plotly_chart(m["fig"], use_container_width=True, key=f"c_{i}")
 
-user_input = st.chat_input("Iqtisodiyot, biznes qurish yoki ta'limotlar haqida savol bering...")
+user_input = st.chat_input("Savolingizni yozing...")
 prompt = selected_prompt if selected_prompt else user_input
 
 if prompt:
@@ -166,7 +177,7 @@ if prompt:
                 if mode == "Avtomatik (Router)":
                     r_prompt = f"Savol qaysi bo'limga tegishli? Faqat bitta ibora yoz (IQTISODIY TA'LIMOTLAR TARIXI, BIZNES QURISH VA TAHLIL, MAKROIQTISODIYOT, KRIPTO VA BIRJA, SOLIQ MASLAHATCHISI): {prompt}"
                     r_res = client.chat.completions.create(model=MODEL, messages=[{"role": "user", "content": r_prompt}], temperature=0)
-                    cat = r_res.choices[0].message.content.strip().upper()
+                    cat = r_res.choices.message.content.strip().upper()
                 else:
                     cat = mode
 
@@ -180,13 +191,13 @@ if prompt:
                 4. Javob oxirida mavzuni chuqurroq o'rganish uchun 1-2 ta keyingi savol yoki qadam taklif qil.
                 5. Agar raqamlarni taqqoslash yoki grafik chizish so'ralsa, oxirida aniq shu formatda JSON qo'sh:
                 ```chart
-                {{"type":"bar","title":"Sarlavha","x_label":"X","y_label":"Y","x":["A","B"],"y":[10,20]}}
+                {{"type":"bar","title":"Sarlavha","x_label":"X","y_label":"Y","x":["A","B"],"y":}}
                 ```
                 Qo'shimcha ma'lumotlar: Kurslar: {cbu}, Kripto: {crypto}, Yuklangan fayl: {doc_info}, Internet ma'lumotlari: {web}"""
 
                 msgs = [{"role": "system", "content": sys}] + [{"role": x["role"], "content": x["content"]} for x in st.session_state.messages[-8:]] + [{"role": "user", "content": prompt}]
                 a_res = client.chat.completions.create(model=MODEL, messages=msgs, temperature=0.5)
-                ans = a_res.choices[0].message.content
+                ans = a_res.choices.message.content
                 clean, fig = parse_chart(ans)
                 out = f"**📌 Bo'lim:** `{cat}`\n\n{clean}"
                 st.markdown(out)
@@ -201,4 +212,4 @@ if prompt:
                     st.rerun()
             except Exception as e:
                 st.error(f"Xatolik: {e}")
-        
+    
