@@ -6,50 +6,87 @@ from groq import Groq
 from pypdf import PdfReader
 from duckduckgo_search import DDGS
 
-st.set_page_config(page_title="AI Agent — Iqtisodiy Yordamchi", page_icon="✨", layout="centered")
+st.set_page_config(page_title="SALOM MEN AI AGENT", page_icon="✨", layout="centered")
 
-# --- GEMINI USLUBIDAGI DIZAYN ---
+# --- 100% SKRINSHOTDAGI KABI OQ VA YUMALOQ MOBIL DIZAYN (CSS) ---
 st.markdown("""
 <style>
+    /* Asosiy fon va Streamlit tepa panelini yashirish */
+    .stApp {
+        background-color: #ffffff;
+        color: #1f1f1f;
+    }
+    header[data-testid="stHeader"] {
+        background: transparent;
+    }
+    /* Bosh sarlavha */
     .hero-title {
-        font-size: 2.2rem;
+        font-size: 2.1rem;
         font-weight: 800;
-        background: -webkit-linear-gradient(45deg, #4285F4, #9B72CB, #D96570);
+        background: linear-gradient(90deg, #4285F4, #9B72CB, #D96570);
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
-        margin-bottom: 0.2rem;
-        text-transform: uppercase;
+        text-align: center;
+        margin-top: 3rem;
+        margin-bottom: 0.4rem;
     }
     .hero-sub {
-        font-size: 1.15rem;
-        color: #9aa0a6;
-        margin-bottom: 1.5rem;
+        font-size: 1.05rem;
+        color: #5f6368;
+        text-align: center;
+        margin-bottom: 2rem;
     }
-    div.stButton > button {
+    /* Pastki suzuvchi panel (Savol bering + "+" tugmasi) */
+    div[data-testid="stBottom"] {
+        background-color: #ffffff !important;
+        border-top: none !important;
+        padding-bottom: 12px !important;
+    }
+    div[data-testid="stChatInput"] {
+        border-radius: 28px !important;
+        border: 1px solid #dfe1e5 !important;
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08) !important;
+        background-color: #ffffff !important;
+        padding: 4px 8px !important;
+    }
+    /* "+" (Popover) tugmasini yumaloq qilish */
+    div[data-testid="stPopover"] > button {
+        border-radius: 50% !important;
+        width: 44px !important;
+        height: 44px !important;
+        border: 1px solid #dfe1e5 !important;
+        background-color: #f8f9fa !important;
+        color: #1f1f1f !important;
+        font-size: 1.3rem !important;
+        font-weight: bold !important;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.06) !important;
+    }
+    /* Menyu ichidagi tugmalar */
+    div[data-testid="stPopoverBody"] button {
         width: 100%;
-        border-radius: 16px;
-        padding: 14px 16px;
-        text-align: left;
-        border: 1px solid rgba(155, 114, 203, 0.3);
-        font-weight: 500;
-        transition: all 0.2s ease;
+        border-radius: 14px !important;
+        border: none !important;
+        background-color: #f1f3f4 !important;
+        color: #1f1f1f !important;
+        text-align: left !important;
+        padding: 12px 16px !important;
+        margin-bottom: 6px !important;
+        font-weight: 500 !important;
     }
-    div.stButton > button:hover {
-        border-color: #4285F4;
-        transform: translateY(-2px);
+    div[data-testid="stPopoverBody"] button:hover {
+        background-color: #e8eaed !important;
     }
 </style>
 """, unsafe_allow_html=True)
 
-# --- GOOGLE AKKAUNT ORQALI KIRISH (AGAR SECRETS DA SOZLANGAN BO'LSA) ---
+# --- GOOGLE AKKAUNT ORQALI KIRISH (SOZLANGAN BO'LSA) ---
 has_google_auth = "auth" in st.secrets and "google" in st.secrets["auth"]
-if has_google_auth:
-    if not st.user.is_logged_in:
-        st.markdown('<div class="hero-title">SALOM MEN AI AGENT</div>', unsafe_allow_html=True)
-        st.markdown('<div class="hero-sub">Shaxsiy va maxfiy chatni boshlash uchun Google akkauntingiz bilan kiring</div>', unsafe_allow_html=True)
-        if st.button("🔐 Google akkaunt orqali kirish"):
-            st.login("google")
-        st.stop()
+if has_google_auth and not st.user.is_logged_in:
+    st.markdown('<div class="hero-title">SALOM MEN AI AGENT</div>', unsafe_allow_html=True)
+    st.markdown('<div class="hero-sub">Shaxsiy va maxfiy chatni boshlash uchun Google akkauntingiz bilan kiring</div>', unsafe_allow_html=True)
+    if st.button("🔐 Google akkaunt orqali kirish"):
+        st.login("google")
+    st.stop()
 
 client = Groq(api_key=st.secrets.get("GROQ_API_KEY"))
 
@@ -69,16 +106,11 @@ MODEL = get_model()
 def get_rates():
     try:
         r = requests.get("https://cbu.uz", timeout=5).json()
-        cbu = {i['Ccy']: i['Rate'] for i in r if i['Ccy'] in ['USD', 'EUR', 'RUB']}
+        return {i['Ccy']: i['Rate'] for i in r if i['Ccy'] in ['USD', 'EUR', 'RUB']}
     except Exception:
-        cbu = {"USD": "-"}
-    try:
-        cr = requests.get("https://coingecko.com", timeout=5).json()
-    except Exception:
-        cr = {}
-    return cbu, cr
+        return {"USD": "-"}
 
-cbu, crypto = get_rates()
+cbu = get_rates()
 
 def web_search(q):
     try:
@@ -98,118 +130,112 @@ def parse_chart(text):
             df = pd.DataFrame({d.get("x_label", "X"): d["x"], d.get("y_label", "Y"): d["y"]})
             t = d.get("title", "Grafik")
             fig = px.line(df, x=df.columns, y=df.columns, title=t, markers=True) if d.get("type") == "line" else px.bar(df, x=df.columns, y=df.columns, title=t, text_auto=True)
-            fig.update_layout(template="plotly_dark")
+            fig.update_layout(template="plotly_white")
         except Exception:
             pass
     return clean, fig
 
-# --- YON PANEL (HAR BIR FOYDALANUVCHI UCHUN ALOHIDA SESSIYA) ---
+# --- HOLATLAR (HAR BIR FOYDALANUVCHI UCHUN ALOHIDA MAXFIY XOTIRA) ---
+if "messages" not in st.session_state:
+    st.session_state.messages = []
+if "active_tool" not in st.session_state:
+    st.session_state.active_tool = "Avtomatik (Umumiy iqtisodchi)"
+
+# --- YON PANEL (YANGI CHAT VA KURSLAR) ---
 with st.sidebar:
     st.title("✨ AI AGENT")
     if has_google_auth and st.user.is_logged_in:
         st.caption(f"👤 {st.user.name}")
-        if st.button("🚪 Chiqish (Logout)"):
+        if st.button("🚪 Chiqish"):
             st.logout()
     else:
-        st.caption("🔒 Shaxsiy va maxfiy chat sessiyasi")
-        
-    mode = st.selectbox("Yo'nalish:", ["Avtomatik (Router)", "IQTISODIY TA'LIMOTLAR TARIXI", "BIZNES QURISH VA TAHLIL", "MAKROIQTISODIYOT", "KRIPTO VA BIRJA", "SOLIQ MASLAHATCHISI"])
-    use_web = st.checkbox("🌐 Internetdan jonli qidiruv", value=True)
-    st.divider()
-    st.metric("USD (CBU)", f"{cbu.get('USD')} so'm")
-    if crypto:
-        st.metric("Bitcoin", f"${crypto['bitcoin']['usd']:,}")
-    file = st.file_uploader("Hujjat yuklang (PDF, Excel, CSV)", type=["xlsx", "csv", "pdf"])
-    if st.button("➕ Yangi chat ochish"):
+        st.caption("🔒 Shaxsiy va maxfiy chat (boshqalarga ko'rinmaydi)")
+    if st.button("➕ Yangi chat"):
         st.session_state.messages = []
         st.rerun()
+    st.divider()
+    st.metric("USD (Markaziy bank)", f"{cbu.get('USD')} so'm")
 
-doc_info = ""
-if file:
-    if file.name.endswith(".pdf"):
-        doc_info = "".join([p.extract_text() for p in PdfReader(file).pages[:15]])[:6000]
-        st.success(f"📄 PDF yuklandi: {file.name}")
-    else:
-        df = pd.read_csv(file) if file.name.endswith(".csv") else pd.read_excel(file)
-        with st.expander("📊 Yuklangan jadval", expanded=True):
-            st.dataframe(df.head(5))
-        doc_info = df.describe().to_string()
-
-# Har bir brauzer/foydalanuvchi uchun alohida izolyatsiya qilingan chat xotirasi
-if "messages" not in st.session_state:
-    st.session_state.messages = []
-
-selected_prompt = None
-
-# --- BOSH EKRAN ---
+# --- BOSH EKRAN SARLAVHASI ---
 if len(st.session_state.messages) == 0:
     st.markdown('<div class="hero-title">SALOM MEN AI AGENT</div>', unsafe_allow_html=True)
-    st.markdown('<div class="hero-sub">Sizning shaxsiy va maxfiy iqtisodiy yordamchingiz. Nimadan boshlaymiz?</div>', unsafe_allow_html=True)
-    
-    col1, col2 = st.columns(2)
-    with col1:
-        if st.button("📜 Iqtisodiy ta'limotlar tarixi\n\nAdam Smit, Keyns va klassik maktablar tahlili"):
-            selected_prompt = "Iqtisodiy ta'limotlar tarixidagi eng muhim maktablar (merkantilizm, klassik maktab, keynschilik, monetarizm) va ularning asoschilarini jadval ko'rinishida tushuntirib ber."
-        if st.button("📊 Makroiqtisodiy tahlil va Grafik\n\nO'zbekiston YaIM, inflyatsiya va valyuta kursi"):
-            selected_prompt = "O'zbekistonning oxirgi 4 yildagi asosiy makroiqtisodiy ko'rsatkichlari va inflyatsiya dinamikasini tahlil qilib, grafik chizib ber."
-    with col2:
-        if st.button("🚀 Biznes qurish va tahlil\n\nNoldan biznes-reja, unit-ekonomika va foyda"):
-            selected_prompt = "O'zbekiston sharoitida noldan daromadli biznes qurish bosqichlari, xarajatlar va foyda tahlili (unit-ekonomika) bo'yicha amaliy qo'llanma ber."
-        if st.button("⚖️ Soliqlar va Birja tahlili\n\nQQS, foyda solig'i va kripto bozori holati"):
-            selected_prompt = "O'zbekistonda tadbirkorlar uchun asosiy soliq rejimlari (aylanma soliq va QQS) farqini jadvalda taqqoslab ber."
+    st.markdown(f'<div class="hero-sub">Faol vosita: <b>{st.session_state.active_tool}</b></div>', unsafe_allow_html=True)
 
-# --- CHAT TARIXI (FAQAT SHU FOYDALANUVCHIGA KO'RINADI) ---
+# --- CHAT TARIXI ---
 for i, m in enumerate(st.session_state.messages):
     with st.chat_message(m["role"]):
         st.markdown(m["content"])
         if m.get("fig"):
             st.plotly_chart(m["fig"], use_container_width=True, key=f"c_{i}")
 
-user_input = st.chat_input("Savolingizni yozing...")
-prompt = selected_prompt if selected_prompt else user_input
+# --- PASTKI "+" MENYU VA "SAVOL BERING" PANELI ---
+col_plus, col_input = st.columns([1, 7])
 
+doc_info = ""
+with col_plus:
+    with st.popover("➕", use_container_width=True):
+        st.markdown("**Fayllar va Hujjatlar**")
+        file = st.file_uploader("📎 PDF, Excel yoki CSV yuklash", type=["pdf", "xlsx", "csv"], label_visibility="collapsed")
+        if file:
+            if file.name.endswith(".pdf"):
+                doc_info = "".join([p.extract_text() for p in PdfReader(file).pages[:15]])[:6000]
+                st.success(f"Yuklandi: {file.name}")
+            else:
+                df = pd.read_csv(file) if file.name.endswith(".csv") else pd.read_excel(file)
+                doc_info = df.describe().to_string()
+                st.success(f"Jadval yuklandi: {file.name}")
+        
+        st.divider()
+        st.markdown("**Vositalar**")
+        if st.button("📜 Iqtisodiy ta'limotlar tarixi"):
+            st.session_state.active_tool = "Iqtisodiy ta'limotlar tarixi"
+            st.rerun()
+        if st.button("📊 Biznes tahlil va qurish"):
+            st.session_state.active_tool = "Biznes tahlil va qurish"
+            st.rerun()
+        if st.button("🌐 Umumiy iqtisodchi (Barchasi)"):
+            st.session_state.active_tool = "Avtomatik (Umumiy iqtisodchi)"
+            st.rerun()
+
+with col_input:
+    prompt = st.chat_input("Savol bering")
+
+# --- JAVOB GENERATSIYASI ---
 if prompt:
     with st.chat_message("user"):
         st.markdown(prompt)
     with st.chat_message("assistant"):
         with st.spinner("Tahlil qilinmoqda..."):
             try:
-                if mode == "Avtomatik (Router)":
-                    r_prompt = f"Savol qaysi bo'limga tegishli? Faqat bitta ibora yoz (IQTISODIY TA'LIMOTLAR TARIXI, BIZNES QURISH VA TAHLIL, MAKROIQTISODIYOT, KRIPTO VA BIRJA, SOLIQ MASLAHATCHISI): {prompt}"
-                    r_res = client.chat.completions.create(model=MODEL, messages=[{"role": "user", "content": r_prompt}], temperature=0)
-                    cat = r_res.choices.message.content.strip().upper()
-                else:
-                    cat = mode
-
-                web = web_search(prompt) if use_web else ""
+                tool = st.session_state.active_tool
+                web = web_search(prompt)
                 
-                sys = f"""Sen Google Gemini darajasidagi mukammal, bilimdon AI iqtisodchi-ekspertsan (Yo'nalish: {cat}).
+                sys = f"""Sen Google Gemini uslubidagi professional AI iqtisodchi-ekspertsan. Hozirgi tanlangan vosita: {tool}.
                 Qoidalar:
                 1. Faqat ravon va adabiy o'zbek tilida javob ber.
-                2. Birinchi gapdayoq savolning eng asosiy javobini yoki xulosasini **qalin shrift (bold)** bilan ber.
+                2. Birinchi gapdayoq savolning eng asosiy javobini yoki xulosasini **qalin shrift (bold)** bilan aniq ber.
                 3. Ma'lumotlarni kichik sarlavhalar (###), punktlar (*) va taqqoslash jadvallari (Markdown Table) ko'rinishida tuzilmali ber.
-                4. Javob oxirida mavzuni chuqurroq o'rganish uchun 1-2 ta keyingi savol yoki qadam taklif qil.
-                5. Agar raqamlarni taqqoslash yoki grafik chizish so'ralsa, oxirida aniq shu formatda JSON qo'sh:
+                4. Agar vosita "Iqtisodiy ta'limotlar tarixi" bo'lsa: iqtisodiy maktablar (merkantilizm, klassik, keynschilik, monetarizm) va mutafakkirlar ta'limotini chuqur tahlil qil.
+                5. Agar vosita "Biznes tahlil va qurish" bo'lsa: noldan biznes qurish, unit-ekonomika, xarajat-foyda tahlili va amaliy strategiya ber.
+                6. Agar raqamlarni taqqoslash yoki grafik chizish kerak bo'lsa, javob oxirida aniq shu formatda JSON qo'sh:
                 ```chart
                 {{"type":"bar","title":"Sarlavha","x_label":"X","y_label":"Y","x":["A","B"],"y":}}
                 ```
-                Qo'shimcha ma'lumotlar: Kurslar: {cbu}, Kripto: {crypto}, Yuklangan fayl: {doc_info}, Internet ma'lumotlari: {web}"""
+                Qo'shimcha ma'lumotlar: CBU kurslari: {cbu}, Fayl: {doc_info}, Internet ma'lumotlari: {web}"""
 
                 msgs = [{"role": "system", "content": sys}] + [{"role": x["role"], "content": x["content"]} for x in st.session_state.messages[-8:]] + [{"role": "user", "content": prompt}]
                 a_res = client.chat.completions.create(model=MODEL, messages=msgs, temperature=0.5)
                 ans = a_res.choices.message.content
                 clean, fig = parse_chart(ans)
-                out = f"**📌 Bo'lim:** `{cat}`\n\n{clean}"
-                st.markdown(out)
+                
+                st.markdown(clean)
                 if fig:
                     st.plotly_chart(fig, use_container_width=True, key="new_c")
                     try:
                         st.download_button("📥 Grafikni rasm (PNG) yuklab olish", fig.to_image(format="png"), "grafik.png", "image/png")
                     except Exception:
                         pass
-                st.session_state.messages += [{"role": "user", "content": prompt}, {"role": "assistant", "content": out, "fig": fig}]
-                if selected_prompt:
-                    st.rerun()
+                st.session_state.messages += [{"role": "user", "content": prompt}, {"role": "assistant", "content": clean, "fig": fig}]
             except Exception as e:
                 st.error(f"Xatolik: {e}")
     
