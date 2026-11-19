@@ -6,7 +6,39 @@ from groq import Groq
 from pypdf import PdfReader
 from duckduckgo_search import DDGS
 
-st.set_page_config(page_title="AI Iqtisodchi Agent", page_icon="🎓", layout="wide")
+st.set_page_config(page_title="AI Iqtisodchi Agent", page_icon="✨", layout="centered")
+
+# --- MAXSUS GEMINI USLUBIDAGI DIZAYN (CSS) ---
+st.markdown("""
+<style>
+    .hero-title {
+        font-size: 2.2rem;
+        font-weight: 700;
+        background: -webkit-linear-gradient(45deg, #4285F4, #9B72CB, #D96570);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        margin-bottom: 0.2rem;
+    }
+    .hero-sub {
+        font-size: 1.15rem;
+        color: #9aa0a6;
+        margin-bottom: 1.5rem;
+    }
+    div.stButton > button {
+        width: 100%;
+        border-radius: 16px;
+        padding: 14px 16px;
+        text-align: left;
+        border: 1px solid rgba(155, 114, 203, 0.3);
+        font-weight: 500;
+        transition: all 0.2s ease;
+    }
+    div.stButton > button:hover {
+        border-color: #4285F4;
+        transform: translateY(-2px);
+    }
+</style>
+""", unsafe_allow_html=True)
 
 pwd_secret = st.secrets.get("APP_PASSWORD")
 if pwd_secret and not st.session_state.get("auth"):
@@ -68,20 +100,19 @@ def parse_chart(text):
             pass
     return clean, fig
 
+# --- YON PANEL ---
 with st.sidebar:
-    st.title("🎓 AI Iqtisodchi Agent")
-    mode = st.selectbox("Yo'nalishni tanlang:", ["Avtomatik (Router)", "NAZARIYA (Iqtisodchilar ta'limoti)", "MAKRO", "BIZNES", "BIRJA", "SOLIQ"])
-    use_web = st.checkbox("🌐 Internetdan ma'lumot qidirish", value=True)
+    st.title("✨ AI Iqtisodchi")
+    mode = st.selectbox("Yo'nalish:", ["Avtomatik (Router)", "IQTISODIY TA'LIMOTLAR TARIXI", "BIZNES QURISH VA TAHLIL", "MAKROIQTISODIYOT", "KRIPTO VA BIRJA", "SOLIQ MASLAHATCHISI"])
+    use_web = st.checkbox("🌐 Internetdan jonli qidiruv", value=True)
     st.divider()
-    st.metric("USD (Markaziy bank)", f"{cbu.get('USD')} so'm")
+    st.metric("USD (CBU)", f"{cbu.get('USD')} so'm")
     if crypto:
         st.metric("Bitcoin", f"${crypto['bitcoin']['usd']:,}")
-    file = st.file_uploader("Kitob yoki jadval yuklang (PDF, Excel, CSV)", type=["xlsx", "csv", "pdf"])
-    if st.button("🗑️ Suhbatni tozalash"):
+    file = st.file_uploader("Hujjat yuklang (PDF, Excel, CSV)", type=["xlsx", "csv", "pdf"])
+    if st.button("➕ Yangi suhbat boshlash"):
         st.session_state.messages = []
         st.rerun()
-
-st.header("🎓 Universal AI Iqtisodchi va Nazariyotchi")
 
 doc_info = ""
 if file:
@@ -90,29 +121,50 @@ if file:
         st.success(f"📄 PDF yuklandi: {file.name}")
     else:
         df = pd.read_csv(file) if file.name.endswith(".csv") else pd.read_excel(file)
-        st.dataframe(df.head(5))
-        nums = df.select_dtypes(include="number").columns.tolist()
-        if nums:
-            st.bar_chart(df[nums].head(15))
+        with st.expander("📊 Yuklangan jadval", expanded=True):
+            st.dataframe(df.head(5))
         doc_info = df.describe().to_string()
 
 if "messages" not in st.session_state:
-    st.session_state.messages = [{"role": "assistant", "content": "**Assalomu alaykum! Men sizning universal AI iqtisodchi yordamchingizman.** Mashhur iqtisodchilar ta'limotlari (Adam Smit, Keyns, Fridman va boshqalar), iqtisodiy nazariyalar, makroiqtisodiy tahlil yoki biznes raqamlari bo'yicha istalgan savolingizni bering."}]
+    st.session_state.messages = []
 
+selected_prompt = None
+
+# --- BOSH EKRAN (GEMINI USLUBIDAGI TEZKOR KARTOCHKALAR) ---
+if len(st.session_state.messages) == 0:
+    st.markdown('<div class="hero-title">Salom, Jasur 👋</div>', unsafe_allow_html=True)
+    st.markdown('<div class="hero-sub">Bugun qaysi iqtisodiy mavzuni tahlil qilamiz?</div>', unsafe_allow_html=True)
+    
+    col1, col2 = st.columns(2)
+    with col1:
+        if st.button("📜 Iqtisodiy ta'limotlar tarixi\n\nAdam Smit, Keyns va klassik maktablar tahlili"):
+            selected_prompt = "Iqtisodiy ta'limotlar tarixidagi eng muhim maktablar (merkantilizm, klassik maktab, keynschilik, monetarizm) va ularning asoschilarini jadval ko'rinishida tushuntirib ber."
+        if st.button("📊 Makroiqtisodiy tahlil va Grafik\n\nO'zbekiston YaIM, inflyatsiya va valyuta kursi"):
+            selected_prompt = "O'zbekistonning oxirgi 4 yildagi asosiy makroiqtisodiy ko'rsatkichlari va inflyatsiya dinamikasini tahlil qilib, grafik chizib ber."
+    with col2:
+        if st.button("🚀 Biznes qurish va tahlil\n\nNoldan biznes-reja, unit-ekonomika va foyda"):
+            selected_prompt = "O'zbekiston sharoitida noldan daromadli biznes qurish bosqichlari, xarajatlar va foyda tahlili (unit-ekonomika) bo'yicha amaliy qo'llanma ber."
+        if st.button("⚖️ Soliqlar va Birja tahlili\n\nQQS, foyda solig'i va kripto bozori holati"):
+            selected_prompt = "O'zbekistonda tadbirkorlar uchun asosiy soliq rejimlari (aylanma soliq va QQS) farqini jadvalda taqqoslab ber."
+
+# --- CHAT TARIXI ---
 for i, m in enumerate(st.session_state.messages):
     with st.chat_message(m["role"]):
         st.markdown(m["content"])
         if m.get("fig"):
             st.plotly_chart(m["fig"], use_container_width=True, key=f"c_{i}")
 
-if prompt := st.chat_input("Iqtisodiyot yoki iqtisodchilar ta'limoti haqida so'rang..."):
+user_input = st.chat_input("Iqtisodiyot, biznes qurish yoki ta'limotlar haqida savol bering...")
+prompt = selected_prompt if selected_prompt else user_input
+
+if prompt:
     with st.chat_message("user"):
         st.markdown(prompt)
     with st.chat_message("assistant"):
         with st.spinner("Tahlil qilinmoqda..."):
             try:
                 if mode == "Avtomatik (Router)":
-                    r_prompt = f"Savol qaysi bo'limga tegishli? Faqat bitta so'z yoz (NAZARIYA, MAKRO, BIZNES, BIRJA, SOLIQ). Agar iqtisodchilar, ta'limotlar, tarix yoki umumiy iqtisodiy tushuncha bo'lsa NAZARIYA deb yoz: {prompt}"
+                    r_prompt = f"Savol qaysi bo'limga tegishli? Faqat bitta ibora yoz (IQTISODIY TA'LIMOTLAR TARIXI, BIZNES QURISH VA TAHLIL, MAKROIQTISODIYOT, KRIPTO VA BIRJA, SOLIQ MASLAHATCHISI): {prompt}"
                     r_res = client.chat.completions.create(model=MODEL, messages=[{"role": "user", "content": r_prompt}], temperature=0)
                     cat = r_res.choices[0].message.content.strip().upper()
                 else:
@@ -124,8 +176,8 @@ if prompt := st.chat_input("Iqtisodiyot yoki iqtisodchilar ta'limoti haqida so'r
                 Qoidalar:
                 1. Faqat ravon va adabiy o'zbek tilida javob ber.
                 2. Birinchi gapdayoq savolning eng asosiy javobini yoki xulosasini **qalin shrift (bold)** bilan ber.
-                3. Agar iqtisodchilar (masalan, Adam Smit, Jon Meynard Keyns, Milton Fridman, Karl Marks, David Rikardo) yoki iqtisodiy maktablar (merkantilizm, klassik maktab, keynschilik, monetarizm) haqida so'ralsa: ularning asosiy g'oyalarini, mashhur asarlarini, bugungi kundagi ahamiyatini kichik sarlavhalar (###), punktlar (*) va taqqoslash jadvali (Markdown Table) ko'rinishida tushuntir.
-                4. Javob oxirida mavzuni chuqurroq o'rganish uchun 1-2 ta keyingi savol yoki yo'nalish taklif qil.
+                3. Ma'lumotlarni kichik sarlavhalar (###), punktlar (*) va taqqoslash jadvallari (Markdown Table) ko'rinishida tuzilmali ber.
+                4. Javob oxirida mavzuni chuqurroq o'rganish uchun 1-2 ta keyingi savol yoki qadam taklif qil.
                 5. Agar raqamlarni taqqoslash yoki grafik chizish so'ralsa, oxirida aniq shu formatda JSON qo'sh:
                 ```chart
                 {{"type":"bar","title":"Sarlavha","x_label":"X","y_label":"Y","x":["A","B"],"y":[10,20]}}
@@ -145,6 +197,8 @@ if prompt := st.chat_input("Iqtisodiyot yoki iqtisodchilar ta'limoti haqida so'r
                     except Exception:
                         pass
                 st.session_state.messages += [{"role": "user", "content": prompt}, {"role": "assistant", "content": out, "fig": fig}]
+                if selected_prompt:
+                    st.rerun()
             except Exception as e:
                 st.error(f"Xatolik: {e}")
-    
+        
