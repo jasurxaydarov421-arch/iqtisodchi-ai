@@ -230,4 +230,4 @@ if prompt := st.chat_input("Savolingizni yozing (masalan: Inflyatsiya dinamikasi
             try:
                 selected_cat = route_query(prompt) if mode == "Avtomatik (Router)" else mode.upper()
                 web_data = search_economic_news(prompt) if use_web else ""
-                
+                raw_answer = ask_advisor(selected_cat, prompt, st.session_state.messages, doc_summary, web_data)
