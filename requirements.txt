@@ -3,3 +3,5 @@ groq
 pandas
 openpyxl
 requests
+pypdf
+duckduckgo-search
