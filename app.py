@@ -8,7 +8,7 @@ import streamlit as st
 
 st.set_page_config(page_title="Iqtisodchi AI", page_icon="🏛️", layout="centered")
 
-CSS = "<style>.stApp{background-color:#F9F8F6;color:#1F1F1F;font-family:sans-serif;}header[data-testid='stHeader']{background:transparent;}section[data-testid='stSidebar']{background-color:#F2F0EC!important;border-right:1px solid #E5E2DC!important;}.claude-hero{text-align:center;margin-top:1.5rem;margin-bottom:1.2rem;}.tmii-logo-box{display:inline-flex;align-items:center;justify-content:center;gap:12px;margin-bottom:12px;text-align:left;}.tmii-text{font-weight:700;font-size:15px;line-height:1.15;}.tmii-red{color:#FF3B22;}.tmii-blue{color:#16354D;}.claude-title{font-size:1.6rem;font-weight:600;color:#1A1918;margin:0.3rem 0;}.claude-sub{font-size:0.95rem;color:#6B6863;}div[data-testid='stChatMessage']{background-color:transparent!important;padding:12px 0!important;}div[data-testid='stChatMessage']:has(div[data-testid='stChatMessageAvatarUser']){flex-direction:row-reverse;background-color:#EFECE6!important;border-radius:20px!important;padding:12px 18px!important;margin-left:auto!important;max-width:82%;}div[data-testid='stChatMessage']:has(div[data-testid='stChatMessageAvatarUser']) div[data-testid='stChatMessageAvatarUser']{display:none;}div[data-testid='stBottom']{background-color:#F9F8F6!important;}div[data-testid='stChatInput']{border-radius:24px!important;border:1px solid #DCD8D0!important;background-color:#FFFFFF!important;}div[data-testid='stPopover']>button{border-radius:50%!important;width:44px!important;height:44px!important;border:1px solid #DCD8D0!important;background-color:#FFFFFF!important;}div.stButton>button{border-radius:14px!important;border:1px solid #E2DDD5!important;background-color:#FFFFFF!important;}</style>"
+CSS = "<style>.stApp{background-color:#F9F8F6;color:#1F1F1F;font-family:sans-serif;}header[data-testid='stHeader']{background:transparent;}section[data-testid='stSidebar']{background-color:#F2F0EC!important;}.claude-hero{text-align:center;margin-top:1rem;margin-bottom:1rem;}.tmii-logo-box{display:inline-flex;align-items:center;justify-content:center;gap:12px;margin-bottom:10px;text-align:left;}.tmii-text{font-weight:700;font-size:15px;line-height:1.15;}.tmii-red{color:#FF3B22;}.tmii-blue{color:#16354D;}.claude-title{font-size:1.5rem;font-weight:600;color:#1A1918;}.claude-sub{font-size:0.9rem;color:#6B6863;}div[data-testid='stChatMessage']{background-color:transparent!important;padding:10px 0!important;}div[data-testid='stChatMessage']:has(div[data-testid='stChatMessageAvatarUser']){flex-direction:row-reverse;background-color:#EFECE6!important;border-radius:18px!important;padding:10px 16px!important;margin-left:auto!important;max-width:82%;}div[data-testid='stChatMessage']:has(div[data-testid='stChatMessageAvatarUser']) div[data-testid='stChatMessageAvatarUser']{display:none;}div[data-testid='stBottom']{background-color:#F9F8F6!important;}div[data-testid='stChatInput']{border-radius:24px!important;border:1px solid #DCD8D0!important;background-color:#FFFFFF!important;}div.stButton>button{border-radius:14px!important;border:1px solid #E2DDD5!important;background-color:#FFFFFF!important;}</style>"
 st.markdown(CSS, unsafe_allow_html=True)
 
 LOGO_HTML = '<div style="width:64px;height:64px;position:relative;flex-shrink:0;"><div style="position:absolute;top:0;left:0;width:64px;height:11px;background:#16354D;"></div><div style="position:absolute;top:0;left:0;width:11px;height:64px;background:#16354D;"></div><div style="position:absolute;top:15px;left:15px;width:10px;height:25px;background:#FF3B22;"></div><div style="position:absolute;top:15px;left:28px;width:10px;height:31px;background:#FF3B22;"></div><div style="position:absolute;top:15px;left:41px;width:10px;height:18px;background:#FF3B22;"></div><div style="position:absolute;top:15px;left:54px;width:10px;height:10px;background:#FF3B22;"></div><div style="position:absolute;top:49px;left:28px;width:10px;height:15px;background:#16354D;"></div><div style="position:absolute;top:36px;left:41px;width:10px;height:28px;background:#16354D;"></div><div style="position:absolute;top:28px;left:54px;width:10px;height:36px;background:#16354D;"></div></div>'
@@ -100,7 +100,7 @@ def ask_ai(prompt, is_acc, doc_info, history):
 
         return parse_chart(ans_clean)
     except Exception as e:
-        return "Xatolik yuz berdi: " + str(e), None
+        return "Xatolik: " + str(e), None
 
 if "messages" not in st.session_state:
     st.session_state.messages = []
@@ -116,6 +116,16 @@ with st.sidebar:
     st.metric("🇺🇸 USD", str(cbu.get("USD", "-")) + " so'm")
     st.metric("🇪🇺 EUR", str(cbu.get("EUR", "-")) + " so'm")
     st.metric("🇷🇺 RUB", str(cbu.get("RUB", "-")) + " so'm")
+    st.divider()
+    file = st.file_uploader("📎 PDF, Excel, CSV yuklash", type=["pdf", "xlsx", "csv"])
+
+doc_info = ""
+if file:
+    if file.name.endswith(".pdf"):
+        doc_info = "".join([p.extract_text() or "" for p in PdfReader(file).pages])
+    else:
+        df = pd.read_csv(file) if file.name.endswith(".csv") else pd.read_excel(file)
+        doc_info = df.to_string()
 
 m1, m2 = st.columns(2)
 with m1:
@@ -137,18 +147,11 @@ if not st.session_state.messages:
     st.markdown(hero, unsafe_allow_html=True)
 
     c1, c2 = st.columns(2)
-    if is_acc:
-        with c1:
-            if st.button("📒 Xomashyo xaridi provodkasi", use_container_width=True):
-                selected_prompt = "Korxona 11 200 000 so'mga (QQS 12% bilan) xomashyo oldi. BHMS provodkalarini jadvalda yoz."
-            if st.button("🏭 Amortizatsiya hisobi", use_container_width=True):
-                selected_prompt = "60 mln so'mlik uskuna 5 yilga to'g'ri chiziqli usulda amortizatsiya qilinadi. Oylik summani hisobla."
-        with c2:
-            if st.button("🧾 Ish haqi va soliqlar", use_container_width=True):
-                selected_prompt = "8 000 000 so'm oylik maoshdan JSHODS, INPS va ijtimoiy soliqni hisobla va provodkasini yoz."
-            if st.button("⚖️ Balans tuzilishi", use_container_width=True):
-                selected_prompt = "Buxgalteriya balansining Aktiv va Passiv qismlarini jadvalda tushuntir."
-    else:
-        with c1:
-            if st.button("📊 Biznes va Unit-ekonomika", use_container_width=True):
+    with c1:
+        if st.button("📒 Xomashyo provodkasi" if is_acc else "📊 Biznes va Unit-ekonomika", use_container_width=True):
+            selected_prompt = "Korxona 11 200 000 so'mga (QQS 12% bilan) xomashyo oldi. BHMS provodkalarini jadvalda yoz." if is_acc else "Kichik qahvaxona misolida unit-ekonomika va zararsizlik nuqtasini hisobla."
+        if st.button("🏭 Amortizatsiya hisobi" if is_acc else "📈 Valyuta kurslari tahlili", use_container_width=True):
+            selected_prompt = "60 mln so'mlik uskuna 5 yilga to'g'ri chiziqli usulda amortizatsiya qilinadi. Oylik summani hisobla." if is_acc else "Bugungi USD, EUR va RUB kurslari holatini qisqacha tahlil qilib ber."
+    with c2:
+        if st.button("🧾 Ish haqi va soliqlar" if is_acc else "🧮 Kredit va NPV masalasi", use_container_width=True):
     
