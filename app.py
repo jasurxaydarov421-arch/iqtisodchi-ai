@@ -8,31 +8,12 @@ import streamlit as st
 
 st.set_page_config(page_title="Iqtisodchi AI", page_icon="🏛️", layout="centered")
 
-CSS = (
-    "<style>"
-    ".stApp { background-color: #F9F8F6; color: #1F1F1F; font-family: sans-serif; }"
-    'header[data-testid="stHeader"] { background: transparent; }'
-    'section[data-testid="stSidebar"] { background-color: #F2F0EC !important; border-right: 1px solid #E5E2DC !important; }'
-    ".claude-hero { text-align: center; margin-top: 1.5rem; margin-bottom: 1.2rem; }"
-    ".tmii-logo-box { display: inline-flex; align-items: center; justify-content: center; gap: 12px; margin-bottom: 12px; text-align: left; }"
-    ".tmii-text { font-weight: 700; font-size: 15px; line-height: 1.15; }"
-    ".tmii-red { color: #FF3B22; }"
-    ".tmii-blue { color: #16354D; }"
-    ".claude-title { font-size: 1.6rem; font-weight: 600; color: #1A1918; margin: 0.3rem 0; }"
-    ".claude-sub { font-size: 0.95rem; color: #6B6863; }"
-    'div[data-testid="stChatMessage"] { background-color: transparent !important; padding: 12px 0 !important; }'
-    'div[data-testid="stChatMessage"]:has(div[data-testid="stChatMessageAvatarUser"]) { flex-direction: row-reverse; background-color: #EFECE6 !important; border-radius: 20px !important; padding: 12px 18px !important; margin-left: auto !important; max-width: 82%; }'
-    'div[data-testid="stChatMessage"]:has(div[data-testid="stChatMessageAvatarUser"]) div[data-testid="stChatMessageAvatarUser"] { display: none; }'
-    'div[data-testid="stBottom"] { background-color: #F9F8F6 !important; }'
-    'div[data-testid="stChatInput"] { border-radius: 24px !important; border: 1px solid #DCD8D0 !important; background-color: #FFFFFF !important; }'
-    'div[data-testid="stPopover"] > button { border-radius: 50% !important; width: 44px !important; height: 44px !important; border: 1px solid #DCD8D0 !important; background-color: #FFFFFF !important; }'
-    "div.stButton > button { border-radius: 14px !important; border: 1px solid #E2DDD5 !important; background-color: #FFFFFF !important; }"
-    "</style>"
-)
+CSS = "<style>.stApp{background-color:#F9F8F6;color:#1F1F1F;font-family:sans-serif;}header[data-testid='stHeader']{background:transparent;}section[data-testid='stSidebar']{background-color:#F2F0EC!important;border-right:1px solid #E5E2DC!important;}.claude-hero{text-align:center;margin-top:1.5rem;margin-bottom:1.2rem;}.tmii-logo-box{display:inline-flex;align-items:center;justify-content:center;gap:12px;margin-bottom:12px;text-align:left;}.tmii-text{font-weight:700;font-size:15px;line-height:1.15;}.tmii-red{color:#FF3B22;}.tmii-blue{color:#16354D;}.claude-title{font-size:1.6rem;font-weight:600;color:#1A1918;margin:0.3rem 0;}.claude-sub{font-size:0.95rem;color:#6B6863;}div[data-testid='stChatMessage']{background-color:transparent!important;padding:12px 0!important;}div[data-testid='stChatMessage']:has(div[data-testid='stChatMessageAvatarUser']){flex-direction:row-reverse;background-color:#EFECE6!important;border-radius:20px!important;padding:12px 18px!important;margin-left:auto!important;max-width:82%;}div[data-testid='stChatMessage']:has(div[data-testid='stChatMessageAvatarUser']) div[data-testid='stChatMessageAvatarUser']{display:none;}div[data-testid='stBottom']{background-color:#F9F8F6!important;}div[data-testid='stChatInput']{border-radius:24px!important;border:1px solid #DCD8D0!important;background-color:#FFFFFF!important;}div[data-testid='stPopover']>button{border-radius:50%!important;width:44px!important;height:44px!important;border:1px solid #DCD8D0!important;background-color:#FFFFFF!important;}div.stButton>button{border-radius:14px!important;border:1px solid #E2DDD5!important;background-color:#FFFFFF!important;}</style>"
 st.markdown(CSS, unsafe_allow_html=True)
 
-client = Groq(api_key=st.secrets.get("GROQ_API_KEY"))
+LOGO_HTML = '<div style="width:64px;height:64px;position:relative;flex-shrink:0;"><div style="position:absolute;top:0;left:0;width:64px;height:11px;background:#16354D;"></div><div style="position:absolute;top:0;left:0;width:11px;height:64px;background:#16354D;"></div><div style="position:absolute;top:15px;left:15px;width:10px;height:25px;background:#FF3B22;"></div><div style="position:absolute;top:15px;left:28px;width:10px;height:31px;background:#FF3B22;"></div><div style="position:absolute;top:15px;left:41px;width:10px;height:18px;background:#FF3B22;"></div><div style="position:absolute;top:15px;left:54px;width:10px;height:10px;background:#FF3B22;"></div><div style="position:absolute;top:49px;left:28px;width:10px;height:15px;background:#16354D;"></div><div style="position:absolute;top:36px;left:41px;width:10px;height:28px;background:#16354D;"></div><div style="position:absolute;top:28px;left:54px;width:10px;height:36px;background:#16354D;"></div></div>'
 
+client = Groq(api_key=st.secrets.get("GROQ_API_KEY"))
 
 @st.cache_data(ttl=3600)
 def get_model():
@@ -44,9 +25,7 @@ def get_model():
             pass
     return "llama-3.1-8b-instant"
 
-
 MODEL = get_model()
-
 
 @st.cache_data(ttl=600)
 def get_rates():
@@ -56,9 +35,7 @@ def get_rates():
     except Exception:
         return {"USD": "-", "EUR": "-", "RUB": "-"}
 
-
 cbu = get_rates()
-
 
 def web_search(q, is_acc=False):
     try:
@@ -67,7 +44,6 @@ def web_search(q, is_acc=False):
             return "\n".join(["- " + x.get("title", "") + ": " + x.get("body", "") for x in d.text(q + " " + tag, max_results=3)])
     except Exception:
         return ""
-
 
 def run_calc(text):
     res_list = []
@@ -82,7 +58,6 @@ def run_calc(text):
         except Exception as e:
             res_list.append("Xato: " + str(e))
     return clean, "\n".join(res_list)
-
 
 def parse_chart(text):
     m = re.search(r"```chart\s*(.*?)\s*```", text, re.DOTALL)
@@ -103,7 +78,6 @@ def parse_chart(text):
         except Exception:
             pass
     return clean, fig
-
 
 if "messages" not in st.session_state:
     st.session_state.messages = []
@@ -136,8 +110,7 @@ selected_prompt = None
 if not st.session_state.messages:
     h_title = "Buxgalteriya hisobi va soliq tahlili" if is_acc else "Bugun qanday iqtisodiy tahlil qilamiz?"
     h_sub = "O'zbekiston BHMS (21-son), provodkalar va balans" if is_acc else "Shaxsiy AI iqtisodchi, biznes tahlilchi va moliyachi"
-    logo_box = '<div style="width:64px;height:64px;position:relative;flex-shrink:0;"><div style="position:absolute;top:0;left:0;width:64px;height:11px;background:#16354D;"></div><div style="position:absolute;top:0;left:0;width:11px;height:64px;background:#16354D;"></div><div style="position:absolute;top:15px;left:15px;width:10px;height:25px;background:#FF3B22;"></div><div style="position:absolute;top:15px;left:28px;width:10px;height:31px;background:#FF3B22;"></div><div style="position:absolute;top:15px;left:41px;width:10px;height:18px;background:#FF3B22;"></div><div style="position:absolute;top:15px;left:54px;width:10px;height:10px;background:#FF3B22;"></div><div style="position:absolute;top:49px;left:28px;width:10px;height:15px;background:#16354D;"></div><div style="position:absolute;top:36px;left:41px;width:10px;height:28px;background:#16354D;"></div><div style="position:absolute;top:28px;left:54px;width:10px;height:36px;background:#16354D;"></div></div>'
-    hero = '<div class="claude-hero"><div class="tmii-logo-box">' + logo_box + '<div class="tmii-text"><div class="tmii-red">TOSHKENT</div><div class="tmii-blue">MENEJMENT VA</div><div class="tmii-blue">IQTISODIYOT</div><div class="tmii-blue">INSTITUTI</div></div></div><div class="claude-title">' + h_title + '</div><div class="claude-sub">' + h_sub + '</div></div>'
+    hero = '<div class="claude-hero"><div class="tmii-logo-box">' + LOGO_HTML + '<div class="tmii-text"><div class="tmii-red">TOSHKENT</div><div class="tmii-blue">MENEJMENT VA</div><div class="tmii-blue">IQTISODIYOT</div><div class="tmii-blue">INSTITUTI</div></div></div><div class="claude-title">' + h_title + '</div><div class="claude-sub">' + h_sub + '</div></div>'
     st.markdown(hero, unsafe_allow_html=True)
 
     c1, c2 = st.columns(2)
@@ -186,3 +159,13 @@ with col_plus:
 with col_input:
     user_input = st.chat_input("Savol yoki masala yozing...")
 
+prompt = selected_prompt if selected_prompt else user_input
+
+if prompt:
+    with st.chat_message("user"):
+        st.markdown(prompt)
+    with st.chat_message("assistant", avatar="🏛️"):
+        with st.spinner("Tahlil qilinmoqda..."):
+            try:
+                s_res = web_search(prompt, is_acc)
+    
