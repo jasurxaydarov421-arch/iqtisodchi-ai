@@ -19,95 +19,50 @@ ICON_SVG = (
     ' fill="#16354D"/><rect x="87" y="46" width="7" height="48"'
     ' fill="#16354D"/></svg>'
 )
-ICON_DATA_URI = (
+ICON_URI = (
     "data:image/svg+xml;base64,"
     + base64.b64encode(ICON_SVG.encode()).decode()
 )
 
 st.set_page_config(
-    page_title="Iqtisodchi, Moliya va Buxgalteriya AI",
-    page_icon=ICON_DATA_URI,
-    layout="centered",
+    page_title="Iqtisodchi AI", page_icon=ICON_URI, layout="centered"
 )
 
-CSS_LIST = [
-    "<style>",
-    "@import"
-    " url('https://googleapis.com');",
-    ".stApp { background-color: #F9F8F6; color: #1F1F1F; font-family: 'Inter',"
-    " -apple-system, sans-serif; }",
-    'header[data-testid="stHeader"] { background: transparent; }',
-    'section[data-testid="stSidebar"] { background-color: #F2F0EC !important;'
-    " border-right: 1px solid #E5E2DC !important; }",
-    ".claude-hero { text-align: center; margin-top: 1.8rem; margin-bottom:"
-    " 1.2rem; }",
-    ".tmii-logo-box { display: inline-flex; align-items: center;"
-    " justify-content: center; gap: 12px; margin-bottom: 12px; text-align:"
-    " left; }",
-    ".tmii-text { font-family: 'Oswald', 'Inter', sans-serif; font-weight: 600;"
-    " font-size: 16px; line-height: 1.15; letter-spacing: 0.4px; }",
-    ".tmii-red { color: #FF3B22; }",
-    ".tmii-blue { color: #16354D; }",
-    ".claude-title { font-size: 1.65rem; font-weight: 600; color: #1A1918;"
-    " margin: 0.3rem 0; letter-spacing: -0.02em; }",
-    ".claude-sub { font-size: 0.95rem; color: #6B6863; }",
-    'div[data-testid="stChatMessage"] { background-color: transparent'
-    " !important; padding: 14px 0 !important; gap: 14px !important; }",
-    'div[data-testid="stChatMessage"]:has(div[data-testid="stChatMessageAvatarUser"])'
-    " { flex-direction: row-reverse; background-color: #EFECE6 !important;"
-    " border-radius: 20px !important; padding: 12px 18px !important;"
-    " margin-left: auto !important; max-width: 82%; }",
-    'div[data-testid="stChatMessage"]:has(div[data-testid="stChatMessageAvatarUser"])'
-    ' div[data-testid="stChatMessageAvatarUser"] { display: none; }',
-    'div[data-testid="stChatMessageContent"] p { font-size: 1rem !important;'
-    " line-height: 1.65 !important; color: #1F1F1F !important; margin-bottom:"
-    " 0.75rem !important; }",
-    'div[data-testid="stChatMessageContent"] h3 { font-size: 1.15rem'
-    " !important; font-weight: 600 !important; color: #16354D !important;"
-    " margin-top: 1.1rem !important; margin-bottom: 0.5rem !important; }",
-    'div[data-testid="stChatMessageContent"] table { width: 100%;'
-    " border-collapse: collapse; margin: 12px 0; font-size: 0.92rem;"
-    " background: #FFFFFF; border-radius: 10px; overflow: hidden; }",
-    'div[data-testid="stChatMessageContent"] th { background-color: #EFECE6;'
-    " color: #16354D; font-weight: 600; text-align: left; padding: 10px 12px;"
-    " border-bottom: 1px solid #DCD8D0; }",
-    'div[data-testid="stChatMessageContent"] td { padding: 9px 12px;'
-    " border-bottom: 1px solid #EFECE6; }",
-    'div[data-testid="stBottom"] { background-color: #F9F8F6 !important;'
-    " border-top: none !important; }",
-    'div[data-testid="stChatInput"] { border-radius: 24px !important; border:'
-    " 1px solid #DCD8D0 !important; background-color: #FFFFFF !important; }",
-    'div[data-testid="stPopover"] > button { border-radius: 50% !important;'
-    " width: 44px !important; height: 44px !important; border: 1px solid"
-    " #DCD8D0 !important; background-color: #FFFFFF !important; color: #16354D"
-    " !important; }",
-    "div.stButton > button { border-radius: 14px !important; border: 1px solid"
-    " #E2DDD5 !important; background-color: #FFFFFF !important; color: #2D2B28"
-    " !important; font-size: 0.88rem !important; }",
-    "div.stButton > button:hover { border-color: #FF3B22 !important; color:"
-    " #FF3B22 !important; }",
-    "</style>",
-]
-st.markdown("\n".join(CSS_LIST), unsafe_allow_html=True)
+CSS = (
+    "<style>"
+    ".stApp { background-color: #F9F8F6; color: #1F1F1F; font-family: sans-serif; }"
+    'header[data-testid="stHeader"] { background: transparent; }'
+    'section[data-testid="stSidebar"] { background-color: #F2F0EC !important; border-right: 1px solid #E5E2DC !important; }'
+    ".claude-hero { text-align: center; margin-top: 1.5rem; margin-bottom: 1.2rem; }"
+    ".tmii-logo-box { display: inline-flex; align-items: center; justify-content: center; gap: 12px; margin-bottom: 12px; text-align: left; }"
+    ".tmii-text { font-weight: 700; font-size: 15px; line-height: 1.15; }"
+    ".tmii-red { color: #FF3B22; }"
+    ".tmii-blue { color: #16354D; }"
+    ".claude-title { font-size: 1.6rem; font-weight: 600; color: #1A1918; margin: 0.3rem 0; }"
+    ".claude-sub { font-size: 0.95rem; color: #6B6863; }"
+    'div[data-testid="stChatMessage"] { background-color: transparent !important; padding: 12px 0 !important; }'
+    'div[data-testid="stChatMessage"]:has(div[data-testid="stChatMessageAvatarUser"]) { flex-direction: row-reverse; background-color: #EFECE6 !important; border-radius: 20px !important; padding: 12px 18px !important; margin-left: auto !important; max-width: 82%; }'
+    'div[data-testid="stChatMessage"]:has(div[data-testid="stChatMessageAvatarUser"]) div[data-testid="stChatMessageAvatarUser"] { display: none; }'
+    'div[data-testid="stBottom"] { background-color: #F9F8F6 !important; }'
+    'div[data-testid="stChatInput"] { border-radius: 24px !important; border: 1px solid #DCD8D0 !important; background-color: #FFFFFF !important; }'
+    'div[data-testid="stPopover"] > button { border-radius: 50% !important; width: 44px !important; height: 44px !important; border: 1px solid #DCD8D0 !important; background-color: #FFFFFF !important; }'
+    "div.stButton > button { border-radius: 14px !important; border: 1px solid #E2DDD5 !important; background-color: #FFFFFF !important; }"
+    "</style>"
+)
+st.markdown(CSS, unsafe_allow_html=True)
 
 client = Groq(api_key=st.secrets.get("GROQ_API_KEY"))
 
 
 @st.cache_data(ttl=3600)
 def get_model():
-  for m in (
-      "llama-3.3-70b-versatile",
-      "openai/gpt-oss-120b",
-      "llama-3.1-8b-instant",
-  ):
-    try:
-      client.chat.completions.create(
-          model=m, messages=[{"role": "user", "content": "1"}], max_tokens=1
-      )
-      return m
-    except Exception:
-      pass
-  return "llama-3.1-8b-instant"
+    for m in ("llama-3.3-70b-versatile", "llama-3.1-8b-instant"):
+        try:
+            client.chat.completions.create(model=m, messages=[{"role": "user", "content": "1"}], max_tokens=1)
+            return m
+        except Exception:
+            pass
+    return "llama-3.1-8b-instant"
 
 
 MODEL = get_model()
@@ -115,167 +70,138 @@ MODEL = get_model()
 
 @st.cache_data(ttl=600)
 def get_rates():
-  try:
-    r = requests.get(
-        "https://cbu.uz", timeout=5
-    ).json()
-    return {
-        i.get("Ccy"): i.get("Rate", "-")
-        for i in r
-        if i.get("Ccy") in ("USD", "EUR", "RUB")
-    }
-  except Exception:
-    return {"USD": "-", "EUR": "-", "RUB": "-"}
+    try:
+        r = requests.get("https://cbu.uz", timeout=5).json()
+        return {i.get("Ccy"): i.get("Rate", "-") for i in r if i.get("Ccy") in ("USD", "EUR", "RUB")}
+    except Exception:
+        return {"USD": "-", "EUR": "-", "RUB": "-"}
 
 
 cbu = get_rates()
 
 
 def web_search(q, is_acc=False):
-  try:
-    tag = "buxgalteriya BHMS soliq" if is_acc else "biznes moliya iqtisodiyot"
-    with DDGS() as d:
-      return "\n".join([
-          "- " + x.get("title", "") + ": " + x.get("body", "")
-          for x in d.text(q + " " + tag, max_results=3)
-      ])
-  except Exception:
-    return ""
-
-
-def run_finance_calc(text):
-  calc_results = []
-  matches = re.findall(r"```calc\s*(.*?)\s*```", text, re.DOTALL)
-  clean_text = re.sub(
-      r"```calc\s*.*?\s*```", "", text, flags=re.DOTALL
-  ).strip()
-  for code in matches:
     try:
-      safe_env = {"math": math, "round": round, "sum": sum, "pow": pow}
-      local_vars = {}
-      exec(code, {"__builtins__": {}}, {**safe_env, **local_vars})
-      res = local_vars.get("natija", "Hisoblandi")
-      calc_results.append("Aniq hisob natijasi: " + str(res))
-    except Exception as e:
-      calc_results.append("Hisob xatosi: " + str(e))
-  return clean_text, "\n".join(calc_results)
+        tag = "buxgalteriya BHMS soliq" if is_acc else "biznes moliya iqtisodiyot"
+        with DDGS() as d:
+            return "\n".join(["- " + x.get("title", "") + ": " + x.get("body", "") for x in d.text(q + " " + tag, max_results=3)])
+    except Exception:
+        return ""
+
+
+def run_calc(text):
+    res_list = []
+    matches = re.findall(r"```calc\s*(.*?)\s*```", text, re.DOTALL)
+    clean = re.sub(r"```calc\s*.*?\s*```", "", text, flags=re.DOTALL).strip()
+    for code in matches:
+        try:
+            env = {"math": math, "round": round, "sum": sum, "pow": pow}
+            loc = {}
+            exec(code, {"__builtins__": {}}, {**env, **loc})
+            res_list.append("Natija: " + str(loc.get("natija", "Hisoblandi")))
+        except Exception as e:
+            res_list.append("Xato: " + str(e))
+    return clean, "\n".join(res_list)
 
 
 def parse_chart(text):
-  m = re.search(r"```chart\s*(.*?)\s*```", text, re.DOTALL)
-  clean = re.sub(r"```chart\s*.*?\s*```", "", text, flags=re.DOTALL).strip()
-  fig = None
-  if m:
-    try:
-      d = json.loads(m.group(1))
-      xl = d.get("x_label", "X")
-      yl = d.get("y_label", "Y")
-      t = d.get("title", "Grafik")
-      df = pd.DataFrame({xl: d.get("x"), yl: d.get("y")})
-      if d.get("type") == "line":
-        fig = px.line(
-            df,
-            x=xl,
-            y=yl,
-            title=t,
-            markers=True,
-            color_discrete_sequence=["#FF3B22"],
-        )
-      else:
-        fig = px.bar(
-            df,
-            x=xl,
-            y=yl,
-            title=t,
-            text_auto=True,
-            color_discrete_sequence=["#16354D"],
-        )
-      fig.update_layout(
-          template="plotly_white", paper_bgcolor="#FFFFFF", plot_bgcolor="#FFFFFF"
-      )
-    except Exception:
-      pass
-  return clean, fig
+    m = re.search(r"```chart\s*(.*?)\s*```", text, re.DOTALL)
+    clean = re.sub(r"```chart\s*.*?\s*```", "", text, flags=re.DOTALL).strip()
+    fig = None
+    if m:
+        try:
+            d = json.loads(m.group(1))
+            xl = d.get("x_label", "X")
+            yl = d.get("y_label", "Y")
+            t = d.get("title", "Grafik")
+            df = pd.DataFrame({xl: d.get("x"), yl: d.get("y")})
+            if d.get("type") == "line":
+                fig = px.line(df, x=xl, y=yl, title=t, markers=True, color_discrete_sequence=["#FF3B22"])
+            else:
+                fig = px.bar(df, x=xl, y=yl, title=t, text_auto=True, color_discrete_sequence=["#16354D"])
+            fig.update_layout(template="plotly_white")
+        except Exception:
+            pass
+    return clean, fig
 
 
 if "messages" not in st.session_state:
-  st.session_state.messages = []
+    st.session_state.messages = []
 if "mode" not in st.session_state:
-  st.session_state.mode = "general"
+    st.session_state.mode = "general"
 
 with st.sidebar:
-  sidebar_head = (
-      '<div style="display:flex; align-items:center; gap:10px;'
-      ' margin-bottom:10px;"><img src="'
-      + ICON_DATA_URI
-      + '" width="32"><h3 style="margin:0; color:#16354D;">Iqtisodchi'
-      " AI</h3></div>"
-  )
-  st.markdown(sidebar_head, unsafe_allow_html=True)
-  if st.button("➕ Yangi suhbat", use_container_width=True):
-    st.session_state.messages = []
-    st.rerun()
-  st.divider()
-  st.metric("🇺🇸 USD", str(cbu.get("USD", "-")) + " so'm")
-  st.metric("🇪🇺 EUR", str(cbu.get("EUR", "-")) + " so'm")
-  st.metric("🇷🇺 RUB", str(cbu.get("RUB", "-")) + " so'm")
-  st.divider()
-  st.caption(
-      "🔒 Shaxsiy va maxfiy chat. Bank kartasi yoki shaxsiy ma'lumotlar"
-      " so'ralmaydi."
-  )
+    st.markdown('<div style="display:flex;align-items:center;gap:10px;"><img src="' + ICON_URI + '" width="32"><h3 style="margin:0;color:#16354D;">Iqtisodchi AI</h3></div>', unsafe_allow_html=True)
+    if st.button("➕ Yangi suhbat", use_container_width=True):
+        st.session_state.messages = []
+        st.rerun()
+    st.divider()
+    st.metric("🇺🇸 USD", str(cbu.get("USD", "-")) + " so'm")
+    st.metric("🇪🇺 EUR", str(cbu.get("EUR", "-")) + " so'm")
+    st.metric("🇷🇺 RUB", str(cbu.get("RUB", "-")) + " so'm")
 
 m1, m2 = st.columns(2)
 with m1:
-  if st.button(
-      "🌐 Umumiy (Iqtisodiyot, Moliya, Biznes)",
-      use_container_width=True,
-      type="primary" if st.session_state.mode == "general" else "secondary",
-  ):
-    st.session_state.mode = "general"
-    st.rerun()
+    if st.button("🌐 Umumiy (Iqtisodiyot, Moliya, Biznes)", use_container_width=True):
+        st.session_state.mode = "general"
+        st.rerun()
 with m2:
-  if st.button(
-      "📒 Buxgalteriya hisobi (BHMS)",
-      use_container_width=True,
-      type="primary" if st.session_state.mode == "accounting" else "secondary",
-  ):
-    st.session_state.mode = "accounting"
-    st.rerun()
+    if st.button("📒 Buxgalteriya hisobi (BHMS)", use_container_width=True):
+        st.session_state.mode = "accounting"
+        st.rerun()
 
 is_acc = st.session_state.mode == "accounting"
 selected_prompt = None
 
 if not st.session_state.messages:
-  hero_title = (
-      "Buxgalteriya hisobi va soliq tahlili"
-      if is_acc
-      else "Bugun qanday iqtisodiy yoki moliyaviy tahlil qilamiz?"
-  )
-  hero_sub = (
-      "O'zbekiston BHMS (21-son), provodkalar, balans va soliq hisob-kitoblari"
-      if is_acc
-      else "Shaxsiy AI iqtisodchi, biznes tahlilchi va moliyachi yordamchingiz"
-  )
-  hero_html = (
-      '<div class="claude-hero"><div class="tmii-logo-box"><img src="'
-      + ICON_DATA_URI
-      + '" width="66"><div class="tmii-text"><div'
-      ' class="tmii-red">TOSHKENT</div><div class="tmii-blue">MENEJMENT'
-      ' VA</div><div class="tmii-blue">IQTISODIYOT</div><div'
-      ' class="tmii-blue">INSTITUTI</div></div></div><div'
-      ' class="claude-title">'
-      + hero_title
-      + '</div><div class="claude-sub">'
-      + hero_sub
-      + "</div></div>"
-  )
-  st.markdown(hero_html, unsafe_allow_html=True)
+    h_title = "Buxgalteriya hisobi va soliq tahlili" if is_acc else "Bugun qanday iqtisodiy tahlil qilamiz?"
+    h_sub = "O'zbekiston BHMS (21-son), provodkalar va balans" if is_acc else "Shaxsiy AI iqtisodchi, biznes tahlilchi va moliyachi"
+    hero = '<div class="claude-hero"><div class="tmii-logo-box"><img src="' + ICON_URI + '" width="64"><div class="tmii-text"><div class="tmii-red">TOSHKENT</div><div class="tmii-blue">MENEJMENT VA</div><div class="tmii-blue">IQTISODIYOT</div><div class="tmii-blue">INSTITUTI</div></div></div><div class="claude-title">' + h_title + '</div><div class="claude-sub">' + h_sub + '</div></div>'
+    st.markdown(hero, unsafe_allow_html=True)
 
-  c1, c2 = st.columns(2)
-  if is_acc:
-    with c1:
-      if st.button(
-          "📒 Xomashyo xaridi va QQS provodkasi", use_container_width=True
-      ):
-        
+    c1, c2 = st.columns(2)
+    if is_acc:
+        with c1:
+            if st.button("📒 Xomashyo xaridi provodkasi", use_container_width=True):
+                selected_prompt = "Korxona 11 200 000 so'mga (QQS 12% bilan) xomashyo oldi. BHMS provodkalarini jadvalda yoz."
+            if st.button("🏭 Amortizatsiya hisobi", use_container_width=True):
+                selected_prompt = "60 mln so'mlik uskuna 5 yilga to'g'ri chiziqli usulda amortizatsiya qilinadi. Oylik summani hisobla."
+        with c2:
+            if st.button("🧾 Ish haqi va soliqlar", use_container_width=True):
+                selected_prompt = "8 000 000 so'm oylik maoshdan JSHODS, INPS va ijtimoiy soliqni hisobla va provodkasini yoz."
+            if st.button("⚖️ Balans tuzilishi", use_container_width=True):
+                selected_prompt = "Buxgalteriya balansining Aktiv va Passiv qismlarini jadvalda tushuntir."
+    else:
+        with c1:
+            if st.button("📊 Biznes va Unit-ekonomika", use_container_width=True):
+                selected_prompt = "Kichik qahvaxona misolida unit-ekonomika va zararsizlik nuqtasini hisobla."
+            if st.button("📈 Valyuta kurslari tahlili", use_container_width=True):
+                selected_prompt = "Bugungi USD, EUR va RUB kurslari holatini qisqacha tahlil qilib ber."
+        with c2:
+            if st.button("🧮 Kredit va NPV masalasi", use_container_width=True):
+                selected_prompt = "100 mln so'm kreditni yillik 24% stavkada 3 yilga annuitet usulida olsam, oylik to'lov qancha bo'ladi?"
+            if st.button("🏛️ Iqtisodiy ta'limotlar", use_container_width=True):
+                selected_prompt = "Klassik maktab va Keynschilik nazariyasi farqlarini jadvalda ko'rsat."
+
+for i, m in enumerate(st.session_state.messages):
+    with st.chat_message(m["role"], avatar=None if m["role"] == "user" else ICON_URI):
+        st.markdown(m["content"])
+        if m.get("fig"):
+            st.plotly_chart(m["fig"], use_container_width=True, key="c_" + str(i))
+
+col_plus, col_input = st.columns(, vertical_alignment="center")
+doc_info = ""
+with col_plus:
+    with st.popover("➕", use_container_width=True):
+        file = st.file_uploader("PDF, Excel, CSV", type=["pdf", "xlsx", "csv"])
+        if file:
+            if file.name.endswith(".pdf"):
+                doc_info = "".join([p.extract_text() or "" for p in PdfReader(file).pages])
+            else:
+                df = pd.read_csv(file) if file.name.endswith(".csv") else pd.read_excel(file)
+                doc_info = df.to_string()
+            st.success("Yuklandi")
+
+with col_input:
+    user_input = st.chat_input("Savol yoki masala yozing...")
+
