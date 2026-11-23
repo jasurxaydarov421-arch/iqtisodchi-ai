@@ -1,4 +1,6 @@
-import json, math, os, re, uuid
+import base64, io, json, math, os, re, uuid
+from concurrent.futures import ThreadPoolExecutor
+from datetime import date, timedelta
 import pandas as pd
 import requests
 import streamlit as st
@@ -29,8 +31,11 @@ UMUMIY = (
     "Ravon o'zbek tilida (lotin) yoz. Raqamli hisob-kitobni HECH QACHON o'zing qilma: "
     "tegishli asbobdan (tool) foydalan va natijani faqat shundan ol. "
     "Javob tuzilishi: 1) birinchi jumlada natijani **qalin** qilib ayt; 2) qisqa tushuntirish; "
-    "3) oxirida ishlatilgan formula. Raqamlarni probel bilan ajrat (12 500 000 so'm). "
-    "Aniq bilmagan narsani taxmin qilma, 'tekshirib ko'ring' de."
+    "3) oxirida ishlatilgan formula (agar hisob bo'lsa). Raqamlarni probel bilan ajrat (12 500 000 so'm). "
+    "Aniq bilmagan narsani taxmin qilma, 'tekshirib ko'ring' de. "
+    "Kod so'ralsa, to'liq ishlaydigan Python kodini ```python blokida yoz va qisqa izoh ber. "
+    "Foydalanuvchi rasm yuborsa (hujjat, chek, hisob-faktura, jadval, grafik), uni diqqat bilan o'qib tahlil qil; "
+    "o'qib bo'lmagan yoki ko'rinmagan joyni taxmin qilma, ochiq ayt."
 )
 SYSTEM = {
     "gen": "Sen TMII (Toshkent menejment va iqtisodiyot instituti) Iqtisodchi AI'san: iqtisodiyot, moliya, "
@@ -41,6 +46,17 @@ SYSTEM = {
            "| № | Debet | Kredit | Summa | Izoh |. Hisob raqamlarini O'zbekiston schyotlar rejasi bo'yicha ko'rsat; "
            "ishonching komil bo'lmagan raqamni '(tekshiring)' deb belgila. Soliq stavkalarini faqat "
            "soliq_stavkalari asbobidan ol. " + UMUMIY,
+    "fc": "Sen TMII Iqtisodiy Prognoz AI'san: The Economist uslubidagi iqtisodiy tahlilchi va dasturchi. "
+          "Inflyatsiya, so'm kursi, foiz stavkalari, iqtisodiy o'sish, tashqi savdo, tovar bozorlari bo'yicha prognoz berasan. "
+          "Qoidalar: "
+          "1) Prognozni DOIM uch ssenariyda ber: asosiy, optimistik, pessimistik, har biriga taxminiy ehtimol (%) bilan. "
+          "2) Farazlarni va asosiy omillarni (drivers) ayt. "
+          "3) Xavflarni va kuzatiladigan signal ko'rsatkichlarni ayt. "
+          "4) Internet ma'lumotini manbasi bilan ishlat; ma'lumot eskirgan yoki yetarli bo'lmasa, ochiq ayt. "
+          "5) Tarixiy raqamlar qatori bo'lsa (masalan, tizim bergan kurs tarixi), prognoz asbobidan foydalan. "
+          "6) Oxirida: 'Bu prognoz, kafolat emas.' "
+          "Uslub: sarlavha hukm bilan boshlansin (masalan 'So'm bosim ostida qoladi'), keyin aniq, qisqa tezislar. "
+          "Foydalanuvchi savolida davr ko'rsatilmasa, eng yaqin yil/chorakni ol. " + UMUMIY,
 }
 
 # ====================== HISOB-KITOB FUNKSIYALARI ======================
@@ -104,14 +120,40 @@ def biznes_tahlil(narx, ozgaruvchan_xarajat, doimiy_xarajat, sotuv_soni):
 def valyuta_aylantirish(summa, kimdan, kimga):
     def k(c):
         c = c.upper()
-        return 1.0 if c == "UZS" else float(cbu[c])
+        if c == "UZS":
+            return 1.0
+        try:
+            return float(cbu[c])
+        except Exception:
+            raise ValueError("CBU kursi hozir mavjud emas: " + c)
     return {"natija": round(_f(summa) * k(kimdan) / k(kimga), 2), "manba": "CBU kursi"}
 
 def soliq_stavkalari():
     return SOLIQ
 
+def prognoz(qiymatlar, davr_soni=3):
+    """Tarixiy qator bo'yicha chiziqli trend va CAGR prognozi (oddiy statistik usul)."""
+    v = [_f(x) for x in qiymatlar]
+    n, k = len(v), max(1, min(int(_f(davr_soni)), 12))
+    if n < 3:
+        raise ValueError("Kamida 3 ta tarixiy qiymat kerak")
+    mx, my = (n - 1) / 2, sum(v) / n
+    sxx = sum((i - mx) ** 2 for i in range(n))
+    b = sum((i - mx) * (v[i] - my) for i in range(n)) / sxx
+    a = my - b * mx
+    std = math.sqrt(sum((v[i] - (a + b * i)) ** 2 for i in range(n)) / (n - 2)) if n > 2 else 0.0
+    lin = [a + b * (n - 1 + j) for j in range(1, k + 1)]
+    g = (v[-1] / v[0]) ** (1 / (n - 1)) - 1 if v[0] > 0 and v[-1] > 0 else None
+    return {"oxirgi_qiymat": round(v[-1], 2),
+            "chiziqli_trend": [round(x, 2) for x in lin],
+            "taxminiy_past_chegara": [round(x - 1.96 * std, 2) for x in lin],
+            "taxminiy_yuqori_chegara": [round(x + 1.96 * std, 2) for x in lin],
+            "davrlik_ortacha_osish_foizi": round(g * 100, 2) if g is not None else None,
+            "osish_bo'yicha_prognoz": [round(v[-1] * (1 + g) ** j, 2) for j in range(1, k + 1)] if g is not None else None,
+            "izoh": "Bu faqat statistik ekstrapolyatsiya; tashqi omillar hisobga olinmagan."}
+
 FUNCS = {f.__name__: f for f in (annuitet_kredit, differensial_kredit, ish_haqi, qqs, murakkab_foiz,
-                                 biznes_tahlil, valyuta_aylantirish, soliq_stavkalari)}
+                                 biznes_tahlil, valyuta_aylantirish, soliq_stavkalari, prognoz)}
 
 def _tool(name, desc, props=None, req=None):
     return {"type": "function", "function": {"name": name, "description": desc,
@@ -134,6 +176,8 @@ TOOLS = [
     _tool("valyuta_aylantirish", "CBU kursi bo'yicha valyuta aylantirish (UZS, USD, EUR, RUB)",
           {"summa": N, "kimdan": {"type": "string"}, "kimga": {"type": "string"}}, ["summa", "kimdan", "kimga"]),
     _tool("soliq_stavkalari", "Joriy soliq stavkalari (JSHDS, INPS, ijtimoiy soliq, QQS, foyda solig'i)"),
+    _tool("prognoz", "Tarixiy raqamlar qatori (eskidan yangiga) bo'yicha chiziqli trend va o'sish sur'ati prognozi, ishonch oralig'i bilan",
+          {"qiymatlar": {"type": "array", "items": {"type": "number"}}, "davr_soni": I}, ["qiymatlar"]),
 ]
 
 def call_tool(name, args):
@@ -168,6 +212,28 @@ def get_model():
 
 MODEL = get_model()
 
+@st.cache_data(ttl=3600)
+def get_vision_model():
+    """Rasm tushunadigan modelni Groq ro'yxatidan topadi."""
+    try:
+        ids = [m.id for m in client.models.list().data]
+        for pref in ("llama-4-scout", "llama-4-maverick", "vision"):
+            for m in ids:
+                if pref in m:
+                    return m
+    except Exception:
+        pass
+    return "meta-llama/llama-4-scout-17b-16e-instruct"
+
+def img_to_url(f):
+    """Yuklangan rasmni kichraytirib, base64 data URL ga aylantiradi (Groq limitiga sig'sin)."""
+    from PIL import Image
+    im = Image.open(io.BytesIO(f.getvalue())).convert("RGB")
+    im.thumbnail((1280, 1280))
+    buf = io.BytesIO()
+    im.save(buf, "JPEG", quality=85)
+    return "data:image/jpeg;base64," + base64.b64encode(buf.getvalue()).decode()
+
 @st.cache_data(ttl=600)
 def get_rates():
     try:
@@ -177,6 +243,30 @@ def get_rates():
         return {"USD": "-", "EUR": "-", "RUB": "-"}
 
 cbu = get_rates()
+
+@st.cache_data(ttl=3600)
+def get_history(ccy, days=30):
+    """CBU arxividan so'nggi `days` kunlik kurs: [(sana, kurs), ...] eskidan yangiga."""
+    def one(d):
+        try:
+            r = requests.get(f"https://cbu.uz/oz/arkhiv-kursov-valyut/json/{ccy}/{d.isoformat()}/", timeout=5).json()
+            return d, float(str(r[0]["Rate"]).replace(",", "."))
+        except Exception:
+            return d, None
+    today = date.today()
+    with ThreadPoolExecutor(max_workers=10) as ex:
+        res = list(ex.map(one, [today - timedelta(days=i) for i in range(days)]))
+    return sorted((d, v) for d, v in res if v is not None)
+
+def fx_context():
+    """Prognoz rejimi uchun: USD/UZS so'nggi 30 kunlik kurs matni."""
+    h = get_history("USD")
+    if len(h) < 3:
+        return ""
+    vals = [v for _, v in h]
+    return (f"\nUSD/UZS CBU kursi, {h[0][0]} dan {h[-1][0]} gacha ({len(vals)} kun, eskidan yangiga): {vals}. "
+            f"O'zgarish: {(vals[-1] / vals[0] - 1) * 100:+.2f}%, min {min(vals):.0f}, max {max(vals):.0f}. "
+            "Bu qatorni prognoz asbobiga berib, trendni hisoblat.")
 
 uid = re.sub(r"\W", "", str(st.query_params.get("u", "")))[:16]
 if not uid:
@@ -204,6 +294,7 @@ S.setdefault("cur", None)
 S.setdefault("mode", "gen")
 S.setdefault("form", None)
 S.setdefault("jadval", None)
+S.setdefault("xlsx", None)
 
 def add(u, a):
     if not S.cur or S.cur not in S.chats:
@@ -215,24 +306,45 @@ def add(u, a):
 def fm(x):
     return f"{x:,.0f}".replace(",", " ")
 
+def to_excel(sheets):
+    """{varaq nomi: [qatorlar]} -> xlsx baytlari"""
+    buf = io.BytesIO()
+    with pd.ExcelWriter(buf, engine="openpyxl") as w:
+        for name, rows in sheets.items():
+            pd.DataFrame(rows).to_excel(w, sheet_name=name[:31], index=False)
+    return buf.getvalue()
+
 # ====================== AI ======================
-def ask_ai(prompt, mode, doc, hist, web_on):
+def ask_ai(prompt, mode, doc, hist, web_on, imgs=None):
     web = ""
-    if web_on and DDGS:
+    fc = mode == "fc"
+    if (web_on or fc) and DDGS:  # prognoz rejimida internet doim yoqiladi
         try:
             with DDGS() as d:
-                web = "\n".join(x.get("body", "") for x in d.text(prompt, max_results=2))
+                res = d.text(prompt, max_results=4 if fc else 2)
+                web = "\n".join(f"{x.get('title', '')}: {x.get('body', '')} ({x.get('href', '')})" for x in res)
         except Exception:
             pass
     sys = SYSTEM[mode] + "\nCBU kurslari (so'm): " + str(cbu)
+    if fc:
+        sys += fx_context()
+    model, user_content = MODEL, prompt
+    if imgs:  # rasm bo'lsa vision model ishlatiladi
+        model = get_vision_model()
+        try:
+            user_content = [{"type": "text", "text": prompt}] + [
+                {"type": "image_url", "image_url": {"url": img_to_url(f)}} for f in imgs]
+        except Exception as e:
+            return "Rasmni o'qib bo'lmadi: " + str(e)
     if doc:
         sys += "\nYuklangan fayl:\n" + doc[:8000]
     if web:
-        sys += "\nInternet:\n" + web[:2000]
-    msgs = [{"role": "system", "content": sys}] + [{"role": x["role"], "content": x["content"]} for x in hist[-10:]] + [{"role": "user", "content": prompt}]
+        sys += "\nInternet (manba sifatida ko'rsat):\n" + web[:3500 if fc else 2000]
+    msgs = [{"role": "system", "content": sys}] + [{"role": x["role"], "content": x["content"]} for x in hist[-10:]] + [{"role": "user", "content": user_content}]
+    temp = 0.4 if fc else 0.2
     try:
         for _ in range(4):
-            r = client.chat.completions.create(model=MODEL, messages=msgs, tools=TOOLS, tool_choice="auto", temperature=0.2).choices[0].message
+            r = client.chat.completions.create(model=model, messages=msgs, tools=TOOLS, tool_choice="auto", temperature=temp).choices[0].message
             if not r.tool_calls:
                 return r.content
             msgs.append({"role": "assistant", "content": r.content or "", "tool_calls": [
@@ -241,9 +353,12 @@ def ask_ai(prompt, mode, doc, hist, web_on):
                 msgs.append({"role": "tool", "tool_call_id": t.id, "content": call_tool(t.function.name, t.function.arguments)})
         return "Hisob juda cho'zilib ketdi. Savolni soddaroq yozib ko'ring."
     except Exception:
-        try:  # asbobsiz zaxira urinish
-            return client.chat.completions.create(model=MODEL, messages=msgs[:1] + msgs[1:], temperature=0.2).choices[0].message.content
+        try:  # asbobsiz zaxira urinish: faqat oddiy xabarlar
+            plain = [m for m in msgs if m["role"] in ("system", "user", "assistant") and not m.get("tool_calls")]
+            return client.chat.completions.create(model=model, messages=plain, temperature=temp).choices[0].message.content
         except Exception as e:
+            if "rate" in str(e).lower() or "429" in str(e):
+                return "So'rovlar limiti to'ldi. Bir daqiqadan keyin qayta urinib ko'ring."
             return "Xato: " + str(e)
 
 # ====================== TEZKOR HISOBLAGICHLAR ======================
@@ -263,116 +378,4 @@ def kredit_form():
               f"| Oylik to'lov | {fm(a['oylik_tolov'])} | {fm(d['birinchi_oy_tolov'])} → {fm(d['oxirgi_oy_tolov'])} |\n"
               f"| Jami to'lov | {fm(a['jami_tolov'])} | {fm(d['jami_tolov'])} |\n"
               f"| Jami foiz | {fm(a['jami_foiz'])} | {fm(d['jami_foiz'])} |\n\n"
-              f"Differensial usulda foiz **{fm(a['jami_foiz'] - d['jami_foiz'])} so'm** kam, lekin dastlabki oylarda to'lov yuqori.\n\n"
-              "Formula: A = S·r·(1+r)ⁿ / ((1+r)ⁿ − 1), r = yillik foiz / 12.")
-        add(f"Kredit: {fm(s)} so'm, yillik {p}%, {n} oy", md)
-        S.jadval, S.form = {"Annuitet jadvali": ar, "Differensial jadvali": dr}, None
-        st.rerun()
-
-def maosh_form():
-    with st.form("maosh"):
-        st.markdown("**🧾 Ish haqi solig'i**")
-        b = st.number_input("Brutto maosh (so'm)", min_value=0, value=8_000_000, step=100_000)
-        ok = st.form_submit_button("Hisoblash", use_container_width=True)
-    if ok:
-        r = ish_haqi(b)
-        md = (f"**Qo'lga tegadigan maosh: {fm(r['qolga_tegadi'])} so'm.**\n\n"
-              "| Ko'rsatkich | Summa (so'm) |\n|---|---|\n"
-              f"| Brutto | {fm(r['brutto'])} |\n"
-              f"| JSHDS ({SOLIQ['JSHDS']:g}%) | {fm(r['JSHDS'])} |\n"
-              f"| INPS ({SOLIQ['INPS']:g}%) | {fm(r['INPS'])} |\n"
-              f"| Ijtimoiy soliq, ish beruvchi ({SOLIQ['Ijtimoiy soliq']:g}%) | {fm(r['ijtimoiy_soliq_ish_beruvchi'])} |\n"
-              f"| Ish beruvchi jami xarajati | {fm(r['ish_beruvchi_jami_xarajat'])} |\n\n"
-              "Soddalashtirilgan hisob: JSHDS va INPS bruttodan olindi.")
-        add(f"Ish haqi solig'i: {fm(b)} so'm brutto", md)
-        S.form = None
-        st.rerun()
-
-# ====================== SIDEBAR ======================
-with st.sidebar:
-    st.markdown("### 🏛️ Iqtisodchi AI")
-    if st.button("➕ Yangi suhbat", use_container_width=True):
-        S.cur, S.form, S.jadval = None, None, None
-        st.rerun()
-    st.markdown("**Tezkor hisoblagichlar**")
-    if st.button("🧮 Kredit hisobi", use_container_width=True):
-        S.form = "kredit"
-        st.rerun()
-    if st.button("🧾 Ish haqi solig'i", use_container_width=True):
-        S.form = "maosh"
-        st.rerun()
-    web_on = st.checkbox("🌐 Internetdan qidirish", value=False)
-    file = st.file_uploader("📎 PDF/Excel/CSV", type=["pdf", "xlsx", "csv"])
-    st.metric("🇺🇸 USD", str(cbu.get("USD")) + " so'm")
-    st.metric("🇪🇺 EUR", str(cbu.get("EUR")) + " so'm")
-    st.metric("🇷🇺 RUB", str(cbu.get("RUB")) + " so'm")
-    st.markdown("**🕘 Suhbatlar**")
-    for cid in reversed(list(S.chats)[-15:]):
-        if st.button("💬 " + S.chats[cid]["title"], key="c_" + cid, use_container_width=True):
-            S.cur, S.mode, S.form, S.jadval = cid, S.chats[cid].get("mode", "gen"), None, None
-            st.rerun()
-    if S.cur in S.chats and st.button("🗑️ Suhbatni o'chirish", use_container_width=True):
-        del S.chats[S.cur]
-        save_chats()
-        S.cur, S.jadval = None, None
-        st.rerun()
-
-doc = ""
-if file:
-    try:
-        if file.name.endswith(".pdf"):
-            doc = "".join(p.extract_text() or "" for p in PdfReader(file).pages)
-        else:
-            doc = (pd.read_csv(file) if file.name.endswith(".csv") else pd.read_excel(file)).to_string()
-    except Exception as e:
-        st.sidebar.error("Faylni o'qib bo'lmadi: " + str(e))
-
-# ====================== ASOSIY EKRAN ======================
-m1, m2 = st.columns(2)
-if m1.button("🌐 Umumiy (Iqtisodiyot, Moliya, Biznes)", use_container_width=True) and S.mode != "gen":
-    S.mode, S.cur, S.form, S.jadval = "gen", None, None, None
-    st.rerun()
-if m2.button("📒 Buxgalteriya hisobi (BHMS)", use_container_width=True) and S.mode != "acc":
-    S.mode, S.cur, S.form, S.jadval = "acc", None, None, None
-    st.rerun()
-
-is_acc = S.mode == "acc"
-msgs = S.chats.get(S.cur, {}).get("messages", [])
-sel = None
-
-if not msgs:
-    t = "Buxgalteriya hisobi va soliq tahlili" if is_acc else "Bugun qanday iqtisodiy tahlil qilamiz?"
-    st.markdown('<div class="hero"><div class="logo">' + LOGO + '<div class="ltxt"><span style="color:#FF3B22">TOSHKENT</span><br>MENEJMENT VA<br>IQTISODIYOT<br>INSTITUTI</div></div><h3>' + t + '</h3></div>', unsafe_allow_html=True)
-    c1, c2 = st.columns(2)
-    if c1.button("📒 Provodkalar" if is_acc else "📊 Biznes tahlil", use_container_width=True):
-        sel = "11.2 mln so'mga QQS bilan xomashyo olindi. BHMS provodkasini yoz." if is_acc else "Kichik biznes unit-ekonomikasini misol bilan hisobla."
-    if c2.button("🧾 Ish haqi solig'i" if is_acc else "🧮 Kredit masalasi", use_container_width=True):
-        S.form = "maosh" if is_acc else "kredit"
-        st.rerun()
-
-if S.form == "kredit":
-    kredit_form()
-elif S.form == "maosh":
-    maosh_form()
-
-for m in msgs:
-    with st.chat_message(m["role"], avatar=None if m["role"] == "user" else "🏛️"):
-        st.markdown(m["content"])
-
-if S.jadval:
-    for nom, rows in S.jadval.items():
-        with st.expander("📋 " + nom):
-            st.dataframe(pd.DataFrame(rows), hide_index=True, use_container_width=True)
-
-inp = st.chat_input("Savol yoki masala yozing...")
-prompt = sel or inp
-
-if prompt:
-    st.chat_message("user").markdown(prompt)
-    with st.chat_message("assistant", avatar="🏛️"):
-        with st.spinner("Hisoblanmoqda..."):
-            ans = ask_ai(prompt, S.mode, doc, msgs, web_on)
-    add(prompt, ans)
-    S.jadval = None
-    st.rerun()
-    
+              f"Differensial usulda foiz **{fm(a['jami_foiz'] -
