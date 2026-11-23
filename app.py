@@ -151,31 +151,23 @@ def parse_chart(text):
   if m:
     try:
       d = json.loads(m.group(1))
-      xl, yl, t = (
-          d.get("x_label", "X"),
-          d.get("y_label", "Y"),
-          d.get("title", "Grafik"),
-      )
+      xl = d.get("x_label", "X")
+      yl = d.get("y_label", "Y")
+      t = d.get("title", "Grafik")
       df = pd.DataFrame({xl: d.get("x"), yl: d.get("y")})
-      fig = (
-          px.line(
-              df,
-              x=xl,
-              y=yl,
-              title=t,
-              markers=True,
-              color_discrete_sequence=["#FF3B22"],
-          )
-          if d.get("type") == "line"
-          else px.bar(
-              df,
-              x=xl,
-              y=yl,
-              title=t,
-              text_auto=True,
-              color_discrete_sequence=["#16354D"],
-          )
-      )
+      if d.get("type") == "line":
+        fig = px.line(
+            df, x=xl, y=yl, title=t, markers=True, color_discrete_sequence=["#FF3B22"]
+        )
+      else:
+        fig = px.bar(
+            df,
+            x=xl,
+            y=yl,
+            title=t,
+            text_auto=True,
+            color_discrete_sequence=["#16354D"],
+        )
       fig.update_layout(
           template="plotly_white", paper_bgcolor="#FFFFFF", plot_bgcolor="#FFFFFF"
       )
@@ -191,9 +183,7 @@ if "active_tool" not in st.session_state:
 
 with st.sidebar:
   st.markdown(
-      f'<div style="display:flex; align-items:center; gap:10px;'
-      f' margin-bottom:10px;"><img src="{ICON_DATA_URI}" width="32"><h3'
-      ' style="margin:0; color:#16354D;">Iqtisodchi AI</h3></div>',
+      f'<div style="display:flex; align-items:center; gap:10px; margin-bottom:10px;"><img src="{ICON_DATA_URI}" width="32"><h3 style="margin:0; color:#16354D;">Iqtisodchi AI</h3></div>',
       unsafe_allow_html=True,
   )
   if st.button("➕ Yangi suhbat", use_container_width=True):
@@ -204,10 +194,7 @@ with st.sidebar:
   st.metric("🇪🇺 EUR", f"{cbu.get('EUR', '-')} so'm")
   st.metric("🇷🇺 RUB", f"{cbu.get('RUB', '-')} so'm")
   st.divider()
-  st.caption(
-      "🔒 Shaxsiy va maxfiy chat. Bank kartasi yoki shaxsiy ma'lumotlar"
-      " so'ralmaydi."
-  )
+  st.caption("🔒 Shaxsiy va maxfiy chat. Bank kartasi yoki shaxsiy ma'lumotlar so'ralmaydi.")
 
 selected_prompt = None
 if not st.session_state.messages:
@@ -244,5 +231,5 @@ if not st.session_state.messages:
   c1, c2 = st.columns(2)
   with c1:
     if st.button("📒 Buxgalteriya provodkalari (BHMS)", use_container_width=True):
-      selected_prompt = (
-        
+      selected_prompt = "Korxona 11 200 000 so'mga (QQS 12% bilan) xomashyo sotib oldi va pulini hisob raqamdan o'tkazdi. O'zbekiston BHMS (21-son) bo'yicha buxgalteriya provodkalarini jadvalda yozib ber."
+    
