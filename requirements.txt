@@ -1,9 +1,7 @@
 streamlit
 groq
 pandas
+pypdf
 openpyxl
 requests
-pypdf
-duckduckgo-search
-plotly
-kaleido
+ddgs
