@@ -1,165 +1,248 @@
-import json, re, requests
+import base64
+import json, math, re, requests
+from duckduckgo_search import DDGS
+from groq import Groq
 import pandas as pd
 import plotly.express as px
-import streamlit as st
-from groq import Groq
 from pypdf import PdfReader
-from duckduckgo_search import DDGS
+import streamlit as st
 
-st.set_page_config(page_title="Iqtisodchi AI", page_icon="✴️", layout="centered")
+ICON_SVG = """<svg xmlns="http://w3.org" viewBox="0 0 100 100">
+  <rect x="6" y="6" width="88" height="17" fill="#16354D"/>
+  <rect x="6" y="6" width="17" height="88" fill="#16354D"/>
+  <rect x="27" y="27" width="16" height="36" fill="#FF3B22"/>
+  <rect x="47" y="27" width="16" height="44" fill="#FF3B22"/>
+  <rect x="67" y="27" width="16" height="26" fill="#FF3B22"/>
+  <rect x="87" y="27" width="7" height="15" fill="#FF3B22"/>
+  <rect x="47" y="75" width="16" height="19" fill="#16354D"/>
+  <rect x="67" y="57" width="16" height="37" fill="#16354D"/>
+  <rect x="87" y="46" width="7" height="48" fill="#16354D"/>
+</svg>"""
 
-st.markdown("""
+ICON_DATA_URI = (
+    f"data:image/svg+xml;base64,{base64.b64encode(ICON_SVG.encode()).decode()}"
+)
+
+st.set_page_config(
+    page_title="Iqtisodchi, Moliya va Buxgalteriya AI",
+    page_icon=ICON_DATA_URI,
+    layout="centered",
+)
+
+st.markdown(
+    """
 <style>
     @import url('https://googleapis.com');
-    .stApp { background-color: #F9F8F6; color: #1A1918; font-family: 'Inter', sans-serif; }
+    
+    .stApp { background-color: #F9F8F6; color: #1F1F1F; font-family: 'Inter', -apple-system, sans-serif; }
     header[data-testid="stHeader"] { background: transparent; }
     section[data-testid="stSidebar"] { background-color: #F2F0EC !important; border-right: 1px solid #E5E2DC !important; }
-    .claude-hero { text-align: center; margin-top: 4.5rem; margin-bottom: 1.5rem; }
-    .claude-icon { font-size: 2.3rem; color: #D97757; }
-    .claude-title { font-size: 1.8rem; font-weight: 600; color: #1A1918; margin: 0.3rem 0; }
+    
+    .claude-hero { text-align: center; margin-top: 2.5rem; margin-bottom: 1.5rem; }
+    .tmii-logo-box { display: inline-flex; align-items: center; justify-content: center; gap: 12px; margin-bottom: 14px; text-align: left; }
+    .tmii-text { font-family: 'Oswald', 'Inter', sans-serif; font-weight: 600; font-size: 16px; line-height: 1.15; letter-spacing: 0.4px; }
+    .tmii-red { color: #FF3B22; }
+    .tmii-blue { color: #16354D; }
+    .claude-title { font-size: 1.7rem; font-weight: 600; color: #1A1918; margin: 0.3rem 0; letter-spacing: -0.02em; }
     .claude-sub { font-size: 0.95rem; color: #6B6863; }
-    .tool-badge { display: inline-block; background: #EFECE6; color: #5C5852; padding: 4px 12px; border-radius: 20px; font-size: 0.82rem; margin-top: 8px; border: 1px solid #E2DDD5; }
-    div[data-testid="stChatMessage"]:has(div[data-testid="stChatMessageAvatarUser"]) { background-color: #EFECE6 !important; border-radius: 18px !important; padding: 12px 18px !important; }
+    .tool-badge { display: inline-block; background: #EFECE6; color: #5C5852; padding: 4px 12px; border-radius: 20px; font-size: 0.8rem; margin-top: 8px; border: 1px solid #E2DDD5; }
+
+    div[data-testid="stChatMessage"] { background-color: transparent !important; padding: 14px 0 !important; gap: 14px !important; }
+    div[data-testid="stChatMessage"]:has(div[data-testid="stChatMessageAvatarUser"]) {
+        flex-direction: row-reverse;
+        background-color: #EFECE6 !important;
+        border-radius: 20px !important;
+        padding: 12px 18px !important;
+        margin-left: auto !important;
+        max-width: 82%;
+    }
+    div[data-testid="stChatMessage"]:has(div[data-testid="stChatMessageAvatarUser"]) div[data-testid="stChatMessageAvatarUser"] { display: none; }
+
+    div[data-testid="stChatMessageContent"] p { font-size: 1rem !important; line-height: 1.65 !important; color: #1F1F1F !important; margin-bottom: 0.75rem !important; }
+    div[data-testid="stChatMessageContent"] h3 { font-size: 1.15rem !important; font-weight: 600 !important; color: #16354D !important; margin-top: 1.1rem !important; margin-bottom: 0.5rem !important; }
+    div[data-testid="stChatMessageContent"] table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 0.92rem; background: #FFFFFF; border-radius: 10px; overflow: hidden; }
+    div[data-testid="stChatMessageContent"] th { background-color: #EFECE6; color: #16354D; font-weight: 600; text-align: left; padding: 10px 12px; border-bottom: 1px solid #DCD8D0; }
+    div[data-testid="stChatMessageContent"] td { padding: 9px 12px; border-bottom: 1px solid #EFECE6; }
+
     div[data-testid="stBottom"] { background-color: #F9F8F6 !important; border-top: none !important; }
-    div[data-testid="stChatInput"] { border-radius: 20px !important; border: 1px solid #DCD8D0 !important; background-color: #FFFFFF !important; }
-    div[data-testid="stPopover"] > button { border-radius: 16px !important; width: 46px !important; height: 46px !important; border: 1px solid #DCD8D0 !important; background-color: #FFFFFF !important; color: #D97757 !important; }
+    div[data-testid="stChatInput"] { border-radius: 24px !important; border: 1px solid #DCD8D0 !important; background-color: #FFFFFF !important; }
+    div[data-testid="stPopover"] > button { border-radius: 50% !important; width: 44px !important; height: 44px !important; border: 1px solid #DCD8D0 !important; background-color: #FFFFFF !important; color: #16354D !important; }
     div.stButton > button { border-radius: 14px !important; border: 1px solid #E2DDD5 !important; background-color: #FFFFFF !important; color: #2D2B28 !important; font-size: 0.88rem !important; }
-    div.stButton > button:hover { border-color: #D97757 !important; color: #D97757 !important; }
+    div.stButton > button:hover { border-color: #FF3B22 !important; color: #FF3B22 !important; }
 </style>
-""", unsafe_allow_html=True)
+""",
+    unsafe_allow_html=True,
+)
 
 client = Groq(api_key=st.secrets.get("GROQ_API_KEY"))
 
+
 @st.cache_data(ttl=3600)
 def get_model():
-    for m in ("llama-3.3-70b-versatile", "openai/gpt-oss-120b", "llama-3.1-8b-instant"):
-        try:
-            client.chat.completions.create(model=m, messages=[{"role": "user", "content": "1"}], max_tokens=1)
-            return m
-        except Exception:
-            pass
-    return "llama-3.1-8b-instant"
+  for m in (
+      "llama-3.3-70b-versatile",
+      "openai/gpt-oss-120b",
+      "llama-3.1-8b-instant",
+  ):
+    try:
+      client.chat.completions.create(
+          model=m, messages=[{"role": "user", "content": "1"}], max_tokens=1
+      )
+      return m
+    except Exception:
+      pass
+  return "llama-3.1-8b-instant"
+
 
 MODEL = get_model()
 
+
 @st.cache_data(ttl=600)
 def get_rates():
-    try:
-        r = requests.get("https://cbu.uz", timeout=5).json()
-        return {i.get("Ccy"): i.get("Rate", "-") for i in r if i.get("Ccy") in ("USD", "EUR", "RUB")}
-    except Exception:
-        return {"USD": "-", "EUR": "-", "RUB": "-"}
+  try:
+    r = requests.get(
+        "https://cbu.uz", timeout=5
+    ).json()
+    return {
+        i.get("Ccy"): i.get("Rate", "-")
+        for i in r
+        if i.get("Ccy") in ("USD", "EUR", "RUB")
+    }
+  except Exception:
+    return {"USD": "-", "EUR": "-", "RUB": "-"}
+
 
 cbu = get_rates()
 
+
 def web_search(q):
+  try:
+    with DDGS() as d:
+      return "\n".join([
+          f"- {x.get('title', '')}: {x.get('body', '')}"
+          for x in d.text(f"{q} buxgalteriya moliya iqtisodiyot", max_results=3)
+      ])
+  except Exception:
+    return ""
+
+
+def run_finance_calc(text):
+  calc_results = []
+  matches = re.findall(r"```calc\s*(.*?)\s*```", text, re.DOTALL)
+  clean_text = re.sub(
+      r"```calc\s*.*?\s*```", "", text, flags=re.DOTALL
+  ).strip()
+  for code in matches:
     try:
-        with DDGS() as d:
-            return "\n".join([f"- {x.get('title', '')}: {x.get('body', '')}" for x in d.text(f"{q} iqtisodiyot", max_results=3)])
-    except Exception:
-        return ""
+      safe_env = {"math": math, "round": round, "sum": sum, "pow": pow}
+      local_vars = {}
+      exec(code, {"__builtins__": {}}, {**safe_env, **local_vars})
+      res = local_vars.get("natija", "Hisoblandi")
+      calc_results.append(f"Aniq hisob natijasi: {res}")
+    except Exception as e:
+      calc_results.append(f"Hisob xatosi: {e}")
+  return clean_text, "\n".join(calc_results)
+
 
 def parse_chart(text):
-    m = re.search(r"```chart\s*(.*?)\s*```", text, re.DOTALL)
-    clean = re.sub(r"```chart\s*.*?\s*```", "", text, flags=re.DOTALL).strip()
-    fig = None
-    if m:
-        try:
-            d = json.loads(m.group(1))
-            xl, yl, t = d.get("x_label", "X"), d.get("y_label", "Y"), d.get("title", "Grafik")
-            df = pd.DataFrame({xl: d.get("x"), yl: d.get("y")})
-            fig = px.line(df, x=xl, y=yl, title=t, markers=True, color_discrete_sequence=["#D97757"]) if d.get("type") == "line" else px.bar(df, x=xl, y=yl, title=t, text_auto=True, color_discrete_sequence=["#D97757"])
-            fig.update_layout(template="plotly_white", paper_bgcolor="#FFFFFF", plot_bgcolor="#FFFFFF")
-        except Exception:
-            pass
-    return clean, fig
+  m = re.search(r"```chart\s*(.*?)\s*```", text, re.DOTALL)
+  clean = re.sub(r"```chart\s*.*?\s*```", "", text, flags=re.DOTALL).strip()
+  fig = None
+  if m:
+    try:
+      d = json.loads(m.group(1))
+      xl, yl, t = (
+          d.get("x_label", "X"),
+          d.get("y_label", "Y"),
+          d.get("title", "Grafik"),
+      )
+      df = pd.DataFrame({xl: d.get("x"), yl: d.get("y")})
+      fig = (
+          px.line(
+              df,
+              x=xl,
+              y=yl,
+              title=t,
+              markers=True,
+              color_discrete_sequence=["#FF3B22"],
+          )
+          if d.get("type") == "line"
+          else px.bar(
+              df,
+              x=xl,
+              y=yl,
+              title=t,
+              text_auto=True,
+              color_discrete_sequence=["#16354D"],
+          )
+      )
+      fig.update_layout(
+          template="plotly_white", paper_bgcolor="#FFFFFF", plot_bgcolor="#FFFFFF"
+      )
+    except Exception:
+      pass
+  return clean, fig
+
 
 if "messages" not in st.session_state:
-    st.session_state.messages = []
+  st.session_state.messages = []
 if "active_tool" not in st.session_state:
-    st.session_state.active_tool = "Avtomatik (Umumiy iqtisodchi)"
+  st.session_state.active_tool = "Avtomatik (Iqtisodiyot, Moliya, Buxgalteriya)"
 
 with st.sidebar:
-    st.markdown("### ✴️ Iqtisodchi AI")
-    if st.button("➕ Yangi suhbat", use_container_width=True):
-        st.session_state.messages = []
-        st.rerun()
-    st.divider()
-    st.metric("🇺🇸 USD", f"{cbu.get('USD', '-')} so'm")
-    st.metric("🇪🇺 EUR", f"{cbu.get('EUR', '-')} so'm")
-    st.metric("🇷🇺 RUB", f"{cbu.get('RUB', '-')} so'm")
-    st.divider()
-    st.caption("🔒 Shaxsiy va maxfiy chat. Bank kartasi yoki shaxsiy ma'lumotlar so'ralmaydi.")
+  st.markdown(
+      f'<div style="display:flex; align-items:center; gap:10px;'
+      f' margin-bottom:10px;"><img src="{ICON_DATA_URI}" width="32"><h3'
+      ' style="margin:0; color:#16354D;">Iqtisodchi AI</h3></div>',
+      unsafe_allow_html=True,
+  )
+  if st.button("➕ Yangi suhbat", use_container_width=True):
+    st.session_state.messages = []
+    st.rerun()
+  st.divider()
+  st.metric("🇺🇸 USD", f"{cbu.get('USD', '-')} so'm")
+  st.metric("🇪🇺 EUR", f"{cbu.get('EUR', '-')} so'm")
+  st.metric("🇷🇺 RUB", f"{cbu.get('RUB', '-')} so'm")
+  st.divider()
+  st.caption(
+      "🔒 Shaxsiy va maxfiy chat. Bank kartasi yoki shaxsiy ma'lumotlar"
+      " so'ralmaydi."
+  )
 
 selected_prompt = None
 if not st.session_state.messages:
-    st.markdown(f'<div class="claude-hero"><div class="claude-icon">✴️</div><div class="claude-title">Bugun qanday iqtisodiy tahlil qilamiz?</div><div class="claude-sub">Shaxsiy AI iqtisodchi va biznes tahlilchi yordamchingiz</div><div class="tool-badge">Rejim: {st.session_state.active_tool}</div></div>', unsafe_allow_html=True)
-    c1, c2 = st.columns(2)
-    with c1:
-        if st.button("📈 Bugungi valyuta kurslari tahlili", use_container_width=True):
-            selected_prompt = "O'zbekistondagi bugungi USD, EUR va RUB kurslari hamda valyuta bozori holatini qisqacha tahlil qilib ber."
-        if st.button("🏛️ Iqtisodiy ta'limotlar tarixi", use_container_width=True):
-            selected_prompt = "Klassik iqtisodiy maktab va Keynschilik nazariyasi o'rtasidagi asosiy farqlarni jadval ko'rinishida tushuntir."
-    with c2:
-        if st.button("💼 Biznes reja va unit-ekonomika", use_container_width=True):
-            selected_prompt = "Kichik biznes boshlashda unit-ekonomika va xarajatlarni qanday hisoblash kerak? Misol bilan tushuntir."
-        if st.button("📊 Inflyatsiya va asosiy stavka", use_container_width=True):
-            selected_prompt = "Markaziy bank asosiy stavkasi inflyatsiya va kredit foizlariga qanday ta'sir qiladi?"
+  st.markdown(
+      f"""
+    <div class="claude-hero">
+        <div class="tmii-logo-box">
+            <svg width="68" height="68" viewBox="0 0 100 100" xmlns="http://w3.org">
+                <rect x="4" y="4" width="92" height="17" fill="#16354D"/>
+                <rect x="4" y="4" width="17" height="92" fill="#16354D"/>
+                <rect x="26" y="26" width="16" height="38" fill="#FF3B22"/>
+                <rect x="46" y="26" width="16" height="46" fill="#FF3B22"/>
+                <rect x="66" y="26" width="16" height="27" fill="#FF3B22"/>
+                <rect x="86" y="26" width="10" height="16" fill="#FF3B22"/>
+                <rect x="46" y="76" width="16" height="20" fill="#16354D"/>
+                <rect x="66" y="57" width="16" height="39" fill="#16354D"/>
+                <rect x="86" y="46" width="10" height="50" fill="#16354D"/>
+            </svg>
+            <div class="tmii-text">
+                <div class="tmii-red">TOSHKENT</div>
+                <div class="tmii-blue">MENEJMENT VA</div>
+                <div class="tmii-blue">IQTISODIYOT</div>
+                <div class="tmii-blue">INSTITUTI</div>
+            </div>
+        </div>
+        <div class="claude-title">Bugun qanday iqtisodiy yoki moliyaviy tahlil qilamiz?</div>
+        <div class="claude-sub">Shaxsiy AI iqtisodchi, moliyachi va bosh buxgalter yordamchingiz</div>
+        <div class="tool-badge">Rejim: {st.session_state.active_tool}</div>
+    </div>
+    """,
+      unsafe_allow_html=True,
+  )
 
-for i, m in enumerate(st.session_state.messages):
-    with st.chat_message(m["role"], avatar="👤" if m["role"] == "user" else "✴️"):
-        st.markdown(m["content"])
-        if m.get("fig"):
-            st.plotly_chart(m["fig"], use_container_width=True, key=f"c_{i}")
-
-col_plus, col_input = st.columns((1, 7))
-doc_info = ""
-with col_plus:
-    with st.popover("➕", use_container_width=True):
-        st.markdown("**📎 Hujjat yuklash**")
-        file = st.file_uploader("PDF, Excel yoki CSV", type=["pdf", "xlsx", "csv"], label_visibility="collapsed")
-        if file:
-            if file.name.endswith(".pdf"):
-                doc_info = "".join([p.extract_text() or "" for p in PdfReader(file).pages])
-                st.success(f"Yuklandi: {file.name}")
-            else:
-                df = pd.read_csv(file) if file.name.endswith(".csv") else pd.read_excel(file)
-                doc_info = df.describe().to_string()
-                st.success(f"Jadval yuklandi: {file.name}")
-        st.divider()
-        st.markdown("**🛠️ Iqtisodiy rejimlar**")
-        if st.button("📜 Iqtisodiy ta'limotlar tarixi", use_container_width=True):
-            st.session_state.active_tool = "Iqtisodiy ta'limotlar tarixi"
-            st.rerun()
-        if st.button("📊 Biznes tahlil va qurish", use_container_width=True):
-            st.session_state.active_tool = "Biznes tahlil va qurish"
-            st.rerun()
-        if st.button("🌐 Umumiy iqtisodchi", use_container_width=True):
-            st.session_state.active_tool = "Avtomatik (Umumiy iqtisodchi)"
-            st.rerun()
-
-with col_input:
-    user_input = st.chat_input("Iqtisodchi AI ga savol yozing...")
-
-prompt = selected_prompt if selected_prompt else user_input
-
-if prompt:
-    with st.chat_message("user", avatar="👤"):
-        st.markdown(prompt)
-    with st.chat_message("assistant", avatar="✴️"):
-        with st.spinner("Tahlil qilinmoqda..."):
-            try:
-                sys_prompt = f"Sen Claude AI uslubidagi professional AI iqtisodchi-ekspertsan. Rejim: {st.session_state.active_tool}. Faqat ravon o'zbek tilida javob ber, asosiy xulosani **bold** qilib ber, sarlavha va jadvallardan foydalan. Grafik kerak bo'lsa oxirida ```chart blokida JSON yoz (type, title, x_label, y_label, x, y). CBU: {cbu}. Fayl: {doc_info}. Internet: {web_search(prompt)}"
-                msgs = [{"role": "system", "content": sys_prompt}] + [{"role": x["role"], "content": x["content"]} for x in st.session_state.messages] + [{"role": "user", "content": prompt}]
-                a_res = client.chat.completions.create(model=MODEL, messages=msgs, temperature=0.5)
-                ans = next(iter(a_res.choices)).message.content
-                clean, fig = parse_chart(ans)
-                st.markdown(clean)
-                if fig:
-                    st.plotly_chart(fig, use_container_width=True, key="new_c")
-                st.session_state.messages.extend([{"role": "user", "content": prompt}, {"role": "assistant", "content": clean, "fig": fig}])
-                if selected_prompt:
-                    st.rerun()
-            except Exception as e:
-                st.error(f"Xatolik: {e}")
-            
+  c1, c2 = st.columns(2)
+  with c1:
+    if st.button("📒 Buxgalteriya provodkalari (BHMS)", use_container_width=True):
+      selected_prompt = (
+        
