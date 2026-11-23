@@ -7,18 +7,18 @@ import plotly.express as px
 from pypdf import PdfReader
 import streamlit as st
 
-ICON_SVG = """<svg xmlns="http://w3.org" viewBox="0 0 100 100">
-  <rect x="6" y="6" width="88" height="17" fill="#16354D"/>
-  <rect x="6" y="6" width="17" height="88" fill="#16354D"/>
-  <rect x="27" y="27" width="16" height="36" fill="#FF3B22"/>
-  <rect x="47" y="27" width="16" height="44" fill="#FF3B22"/>
-  <rect x="67" y="27" width="16" height="26" fill="#FF3B22"/>
-  <rect x="87" y="27" width="7" height="15" fill="#FF3B22"/>
-  <rect x="47" y="75" width="16" height="19" fill="#16354D"/>
-  <rect x="67" y="57" width="16" height="37" fill="#16354D"/>
-  <rect x="87" y="46" width="7" height="48" fill="#16354D"/>
-</svg>"""
-
+ICON_SVG = (
+    '<svg xmlns="http://w3.org" viewBox="0 0 100 100"><rect'
+    ' x="6" y="6" width="88" height="17" fill="#16354D"/><rect x="6" y="6"'
+    ' width="17" height="88" fill="#16354D"/><rect x="27" y="27" width="16"'
+    ' height="36" fill="#FF3B22"/><rect x="47" y="27" width="16" height="44"'
+    ' fill="#FF3B22"/><rect x="67" y="27" width="16" height="26"'
+    ' fill="#FF3B22"/><rect x="87" y="27" width="7" height="15"'
+    ' fill="#FF3B22"/><rect x="47" y="75" width="16" height="19"'
+    ' fill="#16354D"/><rect x="67" y="57" width="16" height="37"'
+    ' fill="#16354D"/><rect x="87" y="46" width="7" height="48"'
+    ' fill="#16354D"/></svg>'
+)
 ICON_DATA_URI = (
     "data:image/svg+xml;base64,"
     + base64.b64encode(ICON_SVG.encode()).decode()
@@ -30,42 +30,65 @@ st.set_page_config(
     layout="centered",
 )
 
-CSS_CODE = """
-<style>
-    @import url('https://googleapis.com');
-    .stApp { background-color: #F9F8F6; color: #1F1F1F; font-family: 'Inter', -apple-system, sans-serif; }
-    header[data-testid="stHeader"] { background: transparent; }
-    section[data-testid="stSidebar"] { background-color: #F2F0EC !important; border-right: 1px solid #E5E2DC !important; }
-    .claude-hero { text-align: center; margin-top: 1.8rem; margin-bottom: 1.2rem; }
-    .tmii-logo-box { display: inline-flex; align-items: center; justify-content: center; gap: 12px; margin-bottom: 12px; text-align: left; }
-    .tmii-text { font-family: 'Oswald', 'Inter', sans-serif; font-weight: 600; font-size: 16px; line-height: 1.15; letter-spacing: 0.4px; }
-    .tmii-red { color: #FF3B22; }
-    .tmii-blue { color: #16354D; }
-    .claude-title { font-size: 1.65rem; font-weight: 600; color: #1A1918; margin: 0.3rem 0; letter-spacing: -0.02em; }
-    .claude-sub { font-size: 0.95rem; color: #6B6863; }
-    div[data-testid="stChatMessage"] { background-color: transparent !important; padding: 14px 0 !important; gap: 14px !important; }
-    div[data-testid="stChatMessage"]:has(div[data-testid="stChatMessageAvatarUser"]) {
-        flex-direction: row-reverse;
-        background-color: #EFECE6 !important;
-        border-radius: 20px !important;
-        padding: 12px 18px !important;
-        margin-left: auto !important;
-        max-width: 82%;
-    }
-    div[data-testid="stChatMessage"]:has(div[data-testid="stChatMessageAvatarUser"]) div[data-testid="stChatMessageAvatarUser"] { display: none; }
-    div[data-testid="stChatMessageContent"] p { font-size: 1rem !important; line-height: 1.65 !important; color: #1F1F1F !important; margin-bottom: 0.75rem !important; }
-    div[data-testid="stChatMessageContent"] h3 { font-size: 1.15rem !important; font-weight: 600 !important; color: #16354D !important; margin-top: 1.1rem !important; margin-bottom: 0.5rem !important; }
-    div[data-testid="stChatMessageContent"] table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 0.92rem; background: #FFFFFF; border-radius: 10px; overflow: hidden; }
-    div[data-testid="stChatMessageContent"] th { background-color: #EFECE6; color: #16354D; font-weight: 600; text-align: left; padding: 10px 12px; border-bottom: 1px solid #DCD8D0; }
-    div[data-testid="stChatMessageContent"] td { padding: 9px 12px; border-bottom: 1px solid #EFECE6; }
-    div[data-testid="stBottom"] { background-color: #F9F8F6 !important; border-top: none !important; }
-    div[data-testid="stChatInput"] { border-radius: 24px !important; border: 1px solid #DCD8D0 !important; background-color: #FFFFFF !important; }
-    div[data-testid="stPopover"] > button { border-radius: 50% !important; width: 44px !important; height: 44px !important; border: 1px solid #DCD8D0 !important; background-color: #FFFFFF !important; color: #16354D !important; }
-    div.stButton > button { border-radius: 14px !important; border: 1px solid #E2DDD5 !important; background-color: #FFFFFF !important; color: #2D2B28 !important; font-size: 0.88rem !important; }
-    div.stButton > button:hover { border-color: #FF3B22 !important; color: #FF3B22 !important; }
-</style>
-"""
-st.markdown(CSS_CODE, unsafe_allow_html=True)
+CSS_LIST = [
+    "<style>",
+    "@import"
+    " url('https://googleapis.com');",
+    ".stApp { background-color: #F9F8F6; color: #1F1F1F; font-family: 'Inter',"
+    " -apple-system, sans-serif; }",
+    'header[data-testid="stHeader"] { background: transparent; }',
+    'section[data-testid="stSidebar"] { background-color: #F2F0EC !important;'
+    " border-right: 1px solid #E5E2DC !important; }",
+    ".claude-hero { text-align: center; margin-top: 1.8rem; margin-bottom:"
+    " 1.2rem; }",
+    ".tmii-logo-box { display: inline-flex; align-items: center;"
+    " justify-content: center; gap: 12px; margin-bottom: 12px; text-align:"
+    " left; }",
+    ".tmii-text { font-family: 'Oswald', 'Inter', sans-serif; font-weight: 600;"
+    " font-size: 16px; line-height: 1.15; letter-spacing: 0.4px; }",
+    ".tmii-red { color: #FF3B22; }",
+    ".tmii-blue { color: #16354D; }",
+    ".claude-title { font-size: 1.65rem; font-weight: 600; color: #1A1918;"
+    " margin: 0.3rem 0; letter-spacing: -0.02em; }",
+    ".claude-sub { font-size: 0.95rem; color: #6B6863; }",
+    'div[data-testid="stChatMessage"] { background-color: transparent'
+    " !important; padding: 14px 0 !important; gap: 14px !important; }",
+    'div[data-testid="stChatMessage"]:has(div[data-testid="stChatMessageAvatarUser"])'
+    " { flex-direction: row-reverse; background-color: #EFECE6 !important;"
+    " border-radius: 20px !important; padding: 12px 18px !important;"
+    " margin-left: auto !important; max-width: 82%; }",
+    'div[data-testid="stChatMessage"]:has(div[data-testid="stChatMessageAvatarUser"])'
+    ' div[data-testid="stChatMessageAvatarUser"] { display: none; }',
+    'div[data-testid="stChatMessageContent"] p { font-size: 1rem !important;'
+    " line-height: 1.65 !important; color: #1F1F1F !important; margin-bottom:"
+    " 0.75rem !important; }",
+    'div[data-testid="stChatMessageContent"] h3 { font-size: 1.15rem'
+    " !important; font-weight: 600 !important; color: #16354D !important;"
+    " margin-top: 1.1rem !important; margin-bottom: 0.5rem !important; }",
+    'div[data-testid="stChatMessageContent"] table { width: 100%;'
+    " border-collapse: collapse; margin: 12px 0; font-size: 0.92rem;"
+    " background: #FFFFFF; border-radius: 10px; overflow: hidden; }",
+    'div[data-testid="stChatMessageContent"] th { background-color: #EFECE6;'
+    " color: #16354D; font-weight: 600; text-align: left; padding: 10px 12px;"
+    " border-bottom: 1px solid #DCD8D0; }",
+    'div[data-testid="stChatMessageContent"] td { padding: 9px 12px;'
+    " border-bottom: 1px solid #EFECE6; }",
+    'div[data-testid="stBottom"] { background-color: #F9F8F6 !important;'
+    " border-top: none !important; }",
+    'div[data-testid="stChatInput"] { border-radius: 24px !important; border:'
+    " 1px solid #DCD8D0 !important; background-color: #FFFFFF !important; }",
+    'div[data-testid="stPopover"] > button { border-radius: 50% !important;'
+    " width: 44px !important; height: 44px !important; border: 1px solid"
+    " #DCD8D0 !important; background-color: #FFFFFF !important; color: #16354D"
+    " !important; }",
+    "div.stButton > button { border-radius: 14px !important; border: 1px solid"
+    " #E2DDD5 !important; background-color: #FFFFFF !important; color: #2D2B28"
+    " !important; font-size: 0.88rem !important; }",
+    "div.stButton > button:hover { border-color: #FF3B22 !important; color:"
+    " #FF3B22 !important; }",
+    "</style>",
+]
+st.markdown("\n".join(CSS_LIST), unsafe_allow_html=True)
 
 client = Groq(api_key=st.secrets.get("GROQ_API_KEY"))
 
@@ -234,21 +257,25 @@ if not st.session_state.messages:
       if is_acc
       else "Shaxsiy AI iqtisodchi, biznes tahlilchi va moliyachi yordamchingiz"
   )
+  hero_html = (
+      '<div class="claude-hero"><div class="tmii-logo-box"><img src="'
+      + ICON_DATA_URI
+      + '" width="66"><div class="tmii-text"><div'
+      ' class="tmii-red">TOSHKENT</div><div class="tmii-blue">MENEJMENT'
+      ' VA</div><div class="tmii-blue">IQTISODIYOT</div><div'
+      ' class="tmii-blue">INSTITUTI</div></div></div><div'
+      ' class="claude-title">'
+      + hero_title
+      + '</div><div class="claude-sub">'
+      + hero_sub
+      + "</div></div>"
+  )
+  st.markdown(hero_html, unsafe_allow_html=True)
 
-  HERO_HTML = """
-    <div class="claude-hero">
-        <div class="tmii-logo-box">
-            <svg width="68" height="68" viewBox="0 0 100 100" xmlns="http://w3.org">
-                <rect x="4" y="4" width="92" height="17" fill="#16354D"/>
-                <rect x="4" y="4" width="17" height="92" fill="#16354D"/>
-                <rect x="26" y="26" width="16" height="38" fill="#FF3B22"/>
-                <rect x="46" y="26" width="16" height="46" fill="#FF3B22"/>
-                <rect x="66" y="26" width="16" height="27" fill="#FF3B22"/>
-                <rect x="86" y="26" width="10" height="16" fill="#FF3B22"/>
-                <rect x="46" y="76" width="16" height="20" fill="#16354D"/>
-                <rect x="66" y="57" width="16" height="39" fill="#16354D"/>
-                <rect x="86" y="46" width="10" height="50" fill="#16354D"/>
-            </svg>
-            <div class="tmii-text">
-                <div class="tmii-red">TOSHKENT</div>
-            
+  c1, c2 = st.columns(2)
+  if is_acc:
+    with c1:
+      if st.button(
+          "📒 Xomashyo xaridi va QQS provodkasi", use_container_width=True
+      ):
+        
