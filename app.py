@@ -38,14 +38,13 @@ st.markdown(
     header[data-testid="stHeader"] { background: transparent; }
     section[data-testid="stSidebar"] { background-color: #F2F0EC !important; border-right: 1px solid #E5E2DC !important; }
     
-    .claude-hero { text-align: center; margin-top: 2.5rem; margin-bottom: 1.5rem; }
-    .tmii-logo-box { display: inline-flex; align-items: center; justify-content: center; gap: 12px; margin-bottom: 14px; text-align: left; }
+    .claude-hero { text-align: center; margin-top: 1.8rem; margin-bottom: 1.2rem; }
+    .tmii-logo-box { display: inline-flex; align-items: center; justify-content: center; gap: 12px; margin-bottom: 12px; text-align: left; }
     .tmii-text { font-family: 'Oswald', 'Inter', sans-serif; font-weight: 600; font-size: 16px; line-height: 1.15; letter-spacing: 0.4px; }
     .tmii-red { color: #FF3B22; }
     .tmii-blue { color: #16354D; }
-    .claude-title { font-size: 1.7rem; font-weight: 600; color: #1A1918; margin: 0.3rem 0; letter-spacing: -0.02em; }
+    .claude-title { font-size: 1.65rem; font-weight: 600; color: #1A1918; margin: 0.3rem 0; letter-spacing: -0.02em; }
     .claude-sub { font-size: 0.95rem; color: #6B6863; }
-    .tool-badge { display: inline-block; background: #EFECE6; color: #5C5852; padding: 4px 12px; border-radius: 20px; font-size: 0.8rem; margin-top: 8px; border: 1px solid #E2DDD5; }
 
     div[data-testid="stChatMessage"] { background-color: transparent !important; padding: 14px 0 !important; gap: 14px !important; }
     div[data-testid="stChatMessage"]:has(div[data-testid="stChatMessageAvatarUser"]) {
@@ -115,12 +114,13 @@ def get_rates():
 cbu = get_rates()
 
 
-def web_search(q):
+def web_search(q, is_acc=False):
   try:
+    tag = "buxgalteriya BHMS soliq" if is_acc else "biznes moliya iqtisodiyot"
     with DDGS() as d:
       return "\n".join([
           f"- {x.get('title', '')}: {x.get('body', '')}"
-          for x in d.text(f"{q} buxgalteriya moliya iqtisodiyot", max_results=3)
+          for x in d.text(f"{q} {tag}", max_results=3)
       ])
   except Exception:
     return ""
@@ -157,7 +157,12 @@ def parse_chart(text):
       df = pd.DataFrame({xl: d.get("x"), yl: d.get("y")})
       if d.get("type") == "line":
         fig = px.line(
-            df, x=xl, y=yl, title=t, markers=True, color_discrete_sequence=["#FF3B22"]
+            df,
+            x=xl,
+            y=yl,
+            title=t,
+            markers=True,
+            color_discrete_sequence=["#FF3B22"],
         )
       else:
         fig = px.bar(
@@ -178,12 +183,14 @@ def parse_chart(text):
 
 if "messages" not in st.session_state:
   st.session_state.messages = []
-if "active_tool" not in st.session_state:
-  st.session_state.active_tool = "Avtomatik (Iqtisodiyot, Moliya, Buxgalteriya)"
+if "mode" not in st.session_state:
+  st.session_state.mode = "general"  # 'general' yoki 'accounting'
 
 with st.sidebar:
   st.markdown(
-      f'<div style="display:flex; align-items:center; gap:10px; margin-bottom:10px;"><img src="{ICON_DATA_URI}" width="32"><h3 style="margin:0; color:#16354D;">Iqtisodchi AI</h3></div>',
+      f'<div style="display:flex; align-items:center; gap:10px;'
+      f' margin-bottom:10px;"><img src="{ICON_DATA_URI}" width="32"><h3'
+      ' style="margin:0; color:#16354D;">Iqtisodchi AI</h3></div>',
       unsafe_allow_html=True,
   )
   if st.button("➕ Yangi suhbat", use_container_width=True):
@@ -194,10 +201,45 @@ with st.sidebar:
   st.metric("🇪🇺 EUR", f"{cbu.get('EUR', '-')} so'm")
   st.metric("🇷🇺 RUB", f"{cbu.get('RUB', '-')} so'm")
   st.divider()
-  st.caption("🔒 Shaxsiy va maxfiy chat. Bank kartasi yoki shaxsiy ma'lumotlar so'ralmaydi.")
+  st.caption(
+      "🔒 Shaxsiy va maxfiy chat. Bank kartasi yoki shaxsiy ma'lumotlar"
+      " so'ralmaydi."
+  )
 
+# Rejimni tanlash tugmalari (Umumiy vs Alohida Buxgalteriya)
+m1, m2 = st.columns(2)
+with m1:
+  if st.button(
+      "🌐 Umumiy (Iqtisodiyot, Moliya, Biznes)",
+      use_container_width=True,
+      type="primary" if st.session_state.mode == "general" else "secondary",
+  ):
+    st.session_state.mode = "general"
+    st.rerun()
+with m2:
+  if st.button(
+      "📒 Buxgalteriya hisobi (BHMS)",
+      use_container_width=True,
+      type="primary" if st.session_state.mode == "accounting" else "secondary",
+  ):
+    st.session_state.mode = "accounting"
+    st.rerun()
+
+is_acc = st.session_state.mode == "accounting"
 selected_prompt = None
+
 if not st.session_state.messages:
+  hero_title = (
+      "Buxgalteriya hisobi va soliq tahlili"
+      if is_acc
+      else "Bugun qanday iqtisodiy yoki moliyaviy tahlil qilamiz?"
+  )
+  hero_sub = (
+      "O'zbekiston BHMS (21-son), provodkalar, balans va soliq hisob-kitoblari"
+      if is_acc
+      else "Shaxsiy AI iqtisodchi, biznes tahlilchi va moliyachi yordamchingiz"
+  )
+
   st.markdown(
       f"""
     <div class="claude-hero">
@@ -214,22 +256,4 @@ if not st.session_state.messages:
                 <rect x="86" y="46" width="10" height="50" fill="#16354D"/>
             </svg>
             <div class="tmii-text">
-                <div class="tmii-red">TOSHKENT</div>
-                <div class="tmii-blue">MENEJMENT VA</div>
-                <div class="tmii-blue">IQTISODIYOT</div>
-                <div class="tmii-blue">INSTITUTI</div>
-            </div>
-        </div>
-        <div class="claude-title">Bugun qanday iqtisodiy yoki moliyaviy tahlil qilamiz?</div>
-        <div class="claude-sub">Shaxsiy AI iqtisodchi, moliyachi va bosh buxgalter yordamchingiz</div>
-        <div class="tool-badge">Rejim: {st.session_state.active_tool}</div>
-    </div>
-    """,
-      unsafe_allow_html=True,
-  )
-
-  c1, c2 = st.columns(2)
-  with c1:
-    if st.button("📒 Buxgalteriya provodkalari (BHMS)", use_container_width=True):
-      selected_prompt = "Korxona 11 200 000 so'mga (QQS 12% bilan) xomashyo sotib oldi va pulini hisob raqamdan o'tkazdi. O'zbekiston BHMS (21-son) bo'yicha buxgalteriya provodkalarini jadvalda yozib ber."
-    
+            
