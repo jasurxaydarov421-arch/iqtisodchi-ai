@@ -79,6 +79,29 @@ def parse_chart(text):
             pass
     return clean, fig
 
+def ask_ai(prompt, is_acc, doc_info, history):
+    try:
+        s_res = web_search(prompt, is_acc)
+        if is_acc:
+            sys_p = "Sen TMII Bosh Buxgalter AI ekspertsan. O'zbekiston 21-sonli BHMS va Soliq kodeksiga asoslan. Faqat ravon o'zbek tilida yoz. Birinchi jumlada natijani **bold** qil. Masala berilsa avval tushuntirib ishla, provodkalarni | Operatsiya | Debet | Kredit | Summa | jadvalida ber, oxirida formula va soliq stavkalarini ko'rsat. Murakkab hisob uchun ```calc blokida Python yoz (natija = ...). CBU: " + str(cbu) + ". Fayl: " + doc_info + ". Internet: " + s_res
+        else:
+            sys_p = "Sen TMII AI iqtisodchi, biznes tahlilchi va moliyachi-ekspertsan. Faqat ravon o'zbek tilida yoz. Masala berilsa DARHOL avval tushuntirib ishla, birinchi jumlada yakuniy natijani **bold** qil va oxirida foydalanilgan formulani ko'rsat. Murakkab hisob uchun ```calc blokida Python yoz (natija = ...). Grafik kerak bo'lsa ```chart blokida JSON yoz (type, title, x_label, y_label, x, y). CBU: " + str(cbu) + ". Fayl: " + doc_info + ". Internet: " + s_res
+
+        msgs = [{"role": "system", "content": sys_p}] + [{"role": x["role"], "content": x["content"]} for x in history] + [{"role": "user", "content": prompt}]
+        res = client.chat.completions.create(model=MODEL, messages=msgs, temperature=0.2)
+        ans = next(iter(res.choices)).message.content
+
+        ans_clean, c_out = run_calc(ans)
+        if c_out:
+            msgs.append({"role": "assistant", "content": ans})
+            msgs.append({"role": "user", "content": "Aniq hisob: " + c_out + ". Shu natija bilan tushuntirilgan yechim va formulani yoz (```calc yozma)."})
+            res2 = client.chat.completions.create(model=MODEL, messages=msgs, temperature=0.2)
+            ans_clean = next(iter(res2.choices)).message.content
+
+        return parse_chart(ans_clean)
+    except Exception as e:
+        return "Xatolik yuz berdi: " + str(e), None
+
 if "messages" not in st.session_state:
     st.session_state.messages = []
 if "mode" not in st.session_state:
@@ -128,44 +151,4 @@ if not st.session_state.messages:
     else:
         with c1:
             if st.button("📊 Biznes va Unit-ekonomika", use_container_width=True):
-                selected_prompt = "Kichik qahvaxona misolida unit-ekonomika va zararsizlik nuqtasini hisobla."
-            if st.button("📈 Valyuta kurslari tahlili", use_container_width=True):
-                selected_prompt = "Bugungi USD, EUR va RUB kurslari holatini qisqacha tahlil qilib ber."
-        with c2:
-            if st.button("🧮 Kredit va NPV masalasi", use_container_width=True):
-                selected_prompt = "100 mln so'm kreditni yillik 24% stavkada 3 yilga annuitet usulida olsam, oylik to'lov qancha bo'ladi?"
-            if st.button("🏛️ Iqtisodiy ta'limotlar", use_container_width=True):
-                selected_prompt = "Klassik maktab va Keynschilik nazariyasi farqlarini jadvalda ko'rsat."
-
-for i, m in enumerate(st.session_state.messages):
-    with st.chat_message(m["role"], avatar=None if m["role"] == "user" else "🏛️"):
-        st.markdown(m["content"])
-        if m.get("fig"):
-            st.plotly_chart(m["fig"], use_container_width=True, key="c_" + str(i))
-
-col_plus, col_input = st.columns([1, 7], vertical_alignment="center")
-doc_info = ""
-with col_plus:
-    with st.popover("➕", use_container_width=True):
-        file = st.file_uploader("PDF, Excel, CSV", type=["pdf", "xlsx", "csv"])
-        if file:
-            if file.name.endswith(".pdf"):
-                doc_info = "".join([p.extract_text() or "" for p in PdfReader(file).pages])
-            else:
-                df = pd.read_csv(file) if file.name.endswith(".csv") else pd.read_excel(file)
-                doc_info = df.to_string()
-            st.success("Yuklandi")
-
-with col_input:
-    user_input = st.chat_input("Savol yoki masala yozing...")
-
-prompt = selected_prompt if selected_prompt else user_input
-
-if prompt:
-    with st.chat_message("user"):
-        st.markdown(prompt)
-    with st.chat_message("assistant", avatar="🏛️"):
-        with st.spinner("Tahlil qilinmoqda..."):
-            try:
-                s_res = web_search(prompt, is_acc)
     
