@@ -1,4 +1,3 @@
-import base64
 import json, math, re, requests
 from duckduckgo_search import DDGS
 from groq import Groq
@@ -7,26 +6,7 @@ import plotly.express as px
 from pypdf import PdfReader
 import streamlit as st
 
-ICON_SVG = (
-    '<svg xmlns="http://w3.org" viewBox="0 0 100 100"><rect'
-    ' x="6" y="6" width="88" height="17" fill="#16354D"/><rect x="6" y="6"'
-    ' width="17" height="88" fill="#16354D"/><rect x="27" y="27" width="16"'
-    ' height="36" fill="#FF3B22"/><rect x="47" y="27" width="16" height="44"'
-    ' fill="#FF3B22"/><rect x="67" y="27" width="16" height="26"'
-    ' fill="#FF3B22"/><rect x="87" y="27" width="7" height="15"'
-    ' fill="#FF3B22"/><rect x="47" y="75" width="16" height="19"'
-    ' fill="#16354D"/><rect x="67" y="57" width="16" height="37"'
-    ' fill="#16354D"/><rect x="87" y="46" width="7" height="48"'
-    ' fill="#16354D"/></svg>'
-)
-ICON_URI = (
-    "data:image/svg+xml;base64,"
-    + base64.b64encode(ICON_SVG.encode()).decode()
-)
-
-st.set_page_config(
-    page_title="Iqtisodchi AI", page_icon=ICON_URI, layout="centered"
-)
+st.set_page_config(page_title="Iqtisodchi AI", page_icon="🏛️", layout="centered")
 
 CSS = (
     "<style>"
@@ -131,7 +111,7 @@ if "mode" not in st.session_state:
     st.session_state.mode = "general"
 
 with st.sidebar:
-    st.markdown('<div style="display:flex;align-items:center;gap:10px;"><img src="' + ICON_URI + '" width="32"><h3 style="margin:0;color:#16354D;">Iqtisodchi AI</h3></div>', unsafe_allow_html=True)
+    st.markdown("### 🏛️ Iqtisodchi AI")
     if st.button("➕ Yangi suhbat", use_container_width=True):
         st.session_state.messages = []
         st.rerun()
@@ -156,7 +136,7 @@ selected_prompt = None
 if not st.session_state.messages:
     h_title = "Buxgalteriya hisobi va soliq tahlili" if is_acc else "Bugun qanday iqtisodiy tahlil qilamiz?"
     h_sub = "O'zbekiston BHMS (21-son), provodkalar va balans" if is_acc else "Shaxsiy AI iqtisodchi, biznes tahlilchi va moliyachi"
-         logo_box = '<div style="width:64px;height:64px;position:relative;flex-shrink:0;"><div style="position:absolute;top:0;left:0;width:64px;height:11px;background:#16354D;"></div><div style="position:absolute;top:0;left:0;width:11px;height:64px;background:#16354D;"></div><div style="position:absolute;top:15px;left:15px;width:10px;height:25px;background:#FF3B22;"></div><div style="position:absolute;top:15px;left:28px;width:10px;height:31px;background:#FF3B22;"></div><div style="position:absolute;top:15px;left:41px;width:10px;height:18px;background:#FF3B22;"></div><div style="position:absolute;top:15px;left:54px;width:10px;height:10px;background:#FF3B22;"></div><div style="position:absolute;top:49px;left:28px;width:10px;height:15px;background:#16354D;"></div><div style="position:absolute;top:36px;left:41px;width:10px;height:28px;background:#16354D;"></div><div style="position:absolute;top:28px;left:54px;width:10px;height:36px;background:#16354D;"></div></div>'
+    logo_box = '<div style="width:64px;height:64px;position:relative;flex-shrink:0;"><div style="position:absolute;top:0;left:0;width:64px;height:11px;background:#16354D;"></div><div style="position:absolute;top:0;left:0;width:11px;height:64px;background:#16354D;"></div><div style="position:absolute;top:15px;left:15px;width:10px;height:25px;background:#FF3B22;"></div><div style="position:absolute;top:15px;left:28px;width:10px;height:31px;background:#FF3B22;"></div><div style="position:absolute;top:15px;left:41px;width:10px;height:18px;background:#FF3B22;"></div><div style="position:absolute;top:15px;left:54px;width:10px;height:10px;background:#FF3B22;"></div><div style="position:absolute;top:49px;left:28px;width:10px;height:15px;background:#16354D;"></div><div style="position:absolute;top:36px;left:41px;width:10px;height:28px;background:#16354D;"></div><div style="position:absolute;top:28px;left:54px;width:10px;height:36px;background:#16354D;"></div></div>'
     hero = '<div class="claude-hero"><div class="tmii-logo-box">' + logo_box + '<div class="tmii-text"><div class="tmii-red">TOSHKENT</div><div class="tmii-blue">MENEJMENT VA</div><div class="tmii-blue">IQTISODIYOT</div><div class="tmii-blue">INSTITUTI</div></div></div><div class="claude-title">' + h_title + '</div><div class="claude-sub">' + h_sub + '</div></div>'
     st.markdown(hero, unsafe_allow_html=True)
 
@@ -185,12 +165,12 @@ if not st.session_state.messages:
                 selected_prompt = "Klassik maktab va Keynschilik nazariyasi farqlarini jadvalda ko'rsat."
 
 for i, m in enumerate(st.session_state.messages):
-    with st.chat_message(m["role"], avatar=None if m["role"] == "user" else ICON_URI):
+    with st.chat_message(m["role"], avatar=None if m["role"] == "user" else "🏛️"):
         st.markdown(m["content"])
         if m.get("fig"):
             st.plotly_chart(m["fig"], use_container_width=True, key="c_" + str(i))
 
-col_plus, col_input = st.columns([1, 8], vertical_alignment="center")
+col_plus, col_input = st.columns([1, 7], vertical_alignment="center")
 doc_info = ""
 with col_plus:
     with st.popover("➕", use_container_width=True):
