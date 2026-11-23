@@ -20,7 +20,8 @@ ICON_SVG = """<svg xmlns="http://w3.org" viewBox="0 0 100 100">
 </svg>"""
 
 ICON_DATA_URI = (
-    f"data:image/svg+xml;base64,{base64.b64encode(ICON_SVG.encode()).decode()}"
+    "data:image/svg+xml;base64,"
+    + base64.b64encode(ICON_SVG.encode()).decode()
 )
 
 st.set_page_config(
@@ -29,15 +30,12 @@ st.set_page_config(
     layout="centered",
 )
 
-st.markdown(
-    """
+CSS_CODE = """
 <style>
     @import url('https://googleapis.com');
-    
     .stApp { background-color: #F9F8F6; color: #1F1F1F; font-family: 'Inter', -apple-system, sans-serif; }
     header[data-testid="stHeader"] { background: transparent; }
     section[data-testid="stSidebar"] { background-color: #F2F0EC !important; border-right: 1px solid #E5E2DC !important; }
-    
     .claude-hero { text-align: center; margin-top: 1.8rem; margin-bottom: 1.2rem; }
     .tmii-logo-box { display: inline-flex; align-items: center; justify-content: center; gap: 12px; margin-bottom: 12px; text-align: left; }
     .tmii-text { font-family: 'Oswald', 'Inter', sans-serif; font-weight: 600; font-size: 16px; line-height: 1.15; letter-spacing: 0.4px; }
@@ -45,7 +43,6 @@ st.markdown(
     .tmii-blue { color: #16354D; }
     .claude-title { font-size: 1.65rem; font-weight: 600; color: #1A1918; margin: 0.3rem 0; letter-spacing: -0.02em; }
     .claude-sub { font-size: 0.95rem; color: #6B6863; }
-
     div[data-testid="stChatMessage"] { background-color: transparent !important; padding: 14px 0 !important; gap: 14px !important; }
     div[data-testid="stChatMessage"]:has(div[data-testid="stChatMessageAvatarUser"]) {
         flex-direction: row-reverse;
@@ -56,22 +53,19 @@ st.markdown(
         max-width: 82%;
     }
     div[data-testid="stChatMessage"]:has(div[data-testid="stChatMessageAvatarUser"]) div[data-testid="stChatMessageAvatarUser"] { display: none; }
-
     div[data-testid="stChatMessageContent"] p { font-size: 1rem !important; line-height: 1.65 !important; color: #1F1F1F !important; margin-bottom: 0.75rem !important; }
     div[data-testid="stChatMessageContent"] h3 { font-size: 1.15rem !important; font-weight: 600 !important; color: #16354D !important; margin-top: 1.1rem !important; margin-bottom: 0.5rem !important; }
     div[data-testid="stChatMessageContent"] table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 0.92rem; background: #FFFFFF; border-radius: 10px; overflow: hidden; }
     div[data-testid="stChatMessageContent"] th { background-color: #EFECE6; color: #16354D; font-weight: 600; text-align: left; padding: 10px 12px; border-bottom: 1px solid #DCD8D0; }
     div[data-testid="stChatMessageContent"] td { padding: 9px 12px; border-bottom: 1px solid #EFECE6; }
-
     div[data-testid="stBottom"] { background-color: #F9F8F6 !important; border-top: none !important; }
     div[data-testid="stChatInput"] { border-radius: 24px !important; border: 1px solid #DCD8D0 !important; background-color: #FFFFFF !important; }
     div[data-testid="stPopover"] > button { border-radius: 50% !important; width: 44px !important; height: 44px !important; border: 1px solid #DCD8D0 !important; background-color: #FFFFFF !important; color: #16354D !important; }
     div.stButton > button { border-radius: 14px !important; border: 1px solid #E2DDD5 !important; background-color: #FFFFFF !important; color: #2D2B28 !important; font-size: 0.88rem !important; }
     div.stButton > button:hover { border-color: #FF3B22 !important; color: #FF3B22 !important; }
 </style>
-""",
-    unsafe_allow_html=True,
-)
+"""
+st.markdown(CSS_CODE, unsafe_allow_html=True)
 
 client = Groq(api_key=st.secrets.get("GROQ_API_KEY"))
 
@@ -119,8 +113,8 @@ def web_search(q, is_acc=False):
     tag = "buxgalteriya BHMS soliq" if is_acc else "biznes moliya iqtisodiyot"
     with DDGS() as d:
       return "\n".join([
-          f"- {x.get('title', '')}: {x.get('body', '')}"
-          for x in d.text(f"{q} {tag}", max_results=3)
+          "- " + x.get("title", "") + ": " + x.get("body", "")
+          for x in d.text(q + " " + tag, max_results=3)
       ])
   except Exception:
     return ""
@@ -138,9 +132,9 @@ def run_finance_calc(text):
       local_vars = {}
       exec(code, {"__builtins__": {}}, {**safe_env, **local_vars})
       res = local_vars.get("natija", "Hisoblandi")
-      calc_results.append(f"Aniq hisob natijasi: {res}")
+      calc_results.append("Aniq hisob natijasi: " + str(res))
     except Exception as e:
-      calc_results.append(f"Hisob xatosi: {e}")
+      calc_results.append("Hisob xatosi: " + str(e))
   return clean_text, "\n".join(calc_results)
 
 
@@ -184,29 +178,30 @@ def parse_chart(text):
 if "messages" not in st.session_state:
   st.session_state.messages = []
 if "mode" not in st.session_state:
-  st.session_state.mode = "general"  # 'general' yoki 'accounting'
+  st.session_state.mode = "general"
 
 with st.sidebar:
-  st.markdown(
-      f'<div style="display:flex; align-items:center; gap:10px;'
-      f' margin-bottom:10px;"><img src="{ICON_DATA_URI}" width="32"><h3'
-      ' style="margin:0; color:#16354D;">Iqtisodchi AI</h3></div>',
-      unsafe_allow_html=True,
+  sidebar_head = (
+      '<div style="display:flex; align-items:center; gap:10px;'
+      ' margin-bottom:10px;"><img src="'
+      + ICON_DATA_URI
+      + '" width="32"><h3 style="margin:0; color:#16354D;">Iqtisodchi'
+      " AI</h3></div>"
   )
+  st.markdown(sidebar_head, unsafe_allow_html=True)
   if st.button("➕ Yangi suhbat", use_container_width=True):
     st.session_state.messages = []
     st.rerun()
   st.divider()
-  st.metric("🇺🇸 USD", f"{cbu.get('USD', '-')} so'm")
-  st.metric("🇪🇺 EUR", f"{cbu.get('EUR', '-')} so'm")
-  st.metric("🇷🇺 RUB", f"{cbu.get('RUB', '-')} so'm")
+  st.metric("🇺🇸 USD", str(cbu.get("USD", "-")) + " so'm")
+  st.metric("🇪🇺 EUR", str(cbu.get("EUR", "-")) + " so'm")
+  st.metric("🇷🇺 RUB", str(cbu.get("RUB", "-")) + " so'm")
   st.divider()
   st.caption(
       "🔒 Shaxsiy va maxfiy chat. Bank kartasi yoki shaxsiy ma'lumotlar"
       " so'ralmaydi."
   )
 
-# Rejimni tanlash tugmalari (Umumiy vs Alohida Buxgalteriya)
 m1, m2 = st.columns(2)
 with m1:
   if st.button(
@@ -240,8 +235,7 @@ if not st.session_state.messages:
       else "Shaxsiy AI iqtisodchi, biznes tahlilchi va moliyachi yordamchingiz"
   )
 
-  st.markdown(
-      f"""
+  HERO_HTML = """
     <div class="claude-hero">
         <div class="tmii-logo-box">
             <svg width="68" height="68" viewBox="0 0 100 100" xmlns="http://w3.org">
@@ -256,4 +250,5 @@ if not st.session_state.messages:
                 <rect x="86" y="46" width="10" height="50" fill="#16354D"/>
             </svg>
             <div class="tmii-text">
+                <div class="tmii-red">TOSHKENT</div>
             
