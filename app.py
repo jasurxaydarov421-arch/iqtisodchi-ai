@@ -189,7 +189,7 @@ for i, m in enumerate(st.session_state.messages):
         if m.get("fig"):
             st.plotly_chart(m["fig"], use_container_width=True, key="c_" + str(i))
 
-col_plus, col_input = st.columns(, vertical_alignment="center")
+col_plus, col_input = st.columns([1, 8], vertical_alignment="center")
 doc_info = ""
 with col_plus:
     with st.popover("➕", use_container_width=True):
