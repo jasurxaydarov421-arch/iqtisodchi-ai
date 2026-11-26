@@ -21,6 +21,11 @@ st.markdown("<style>.stApp{background:#F9F8F6;color:#1F1F1F}section[data-testid=
 LOGO = '<div style="width:60px;height:60px;position:relative;flex-shrink:0"><div style="position:absolute;top:0;left:0;width:60px;height:10px;background:#16354D"></div><div style="position:absolute;top:0;left:0;width:10px;height:60px;background:#16354D"></div><div style="position:absolute;top:14px;left:14px;width:9px;height:24px;background:#FF3B22"></div><div style="position:absolute;top:14px;left:26px;width:9px;height:30px;background:#FF3B22"></div><div style="position:absolute;top:14px;left:38px;width:9px;height:17px;background:#FF3B22"></div><div style="position:absolute;top:14px;left:50px;width:10px;height:9px;background:#FF3B22"></div><div style="position:absolute;top:47px;left:26px;width:9px;height:13px;background:#16354D"></div><div style="position:absolute;top:34px;left:38px;width:9px;height:26px;background:#16354D"></div><div style="position:absolute;top:26px;left:50px;width:10px;height:34px;background:#16354D"></div></div>'
 
 from hisob import SOLIQ, TOOLS, HisobXatosi, _ann, _diff, call_tool, ish_haqi, set_rates, tasdiqlanmagan
+try:  # Mathematics AI: kutubxona yetishmasa ham qolgan rejimlar ishlayveradi
+    import matematika
+    MATH_XATO = ""
+except ImportError as e:
+    matematika, MATH_XATO = None, str(e)
 
 # ====================== TIZIM KO'RSATMALARI ======================
 UMUMIY = (
@@ -333,8 +338,8 @@ if file:
         st.sidebar.error("Faylni o'qib bo'lmadi: " + str(e))
 
 # ====================== ASOSIY EKRAN ======================
-MODES = (("gen", "🌐 Umumiy"), ("acc", "📒 Buxgalteriya"), ("fc", "🔮 Prognoz"))
-for col, (key, label) in zip(st.columns(3), MODES):
+MODES = (("gen", "🌐 Umumiy"), ("acc", "📒 Buxgalteriya"), ("fc", "🔮 Prognoz"), ("math", "📐 Matematika"))
+for col, (key, label) in zip(st.columns(len(MODES)), MODES):
     if col.button(label, use_container_width=True, key="m_" + key) and S.mode != key:
         S.mode, S.cur, S.form, S.jadval, S.xlsx = key, None, None, None, None
         st.rerun()
@@ -345,7 +350,8 @@ sel = None
 if not msgs:
     t = {"gen": "Bugun qanday iqtisodiy tahlil qilamiz?",
          "acc": "Buxgalteriya hisobi va soliq tahlili",
-         "fc": "Iqtisodiy prognoz va kod"}[S.mode]
+         "fc": "Iqtisodiy prognoz va kod",
+         "math": "Mathematics AI"}[S.mode]
     st.markdown('<div class="hero"><div class="logo">' + LOGO + '<div class="ltxt"><span style="color:#FF3B22">TOSHKENT</span><br>MENEJMENT VA<br>IQTISODIYOT<br>INSTITUTI</div></div><h3>' + t + '</h3></div>', unsafe_allow_html=True)
     c1, c2 = st.columns(2)
     if S.mode == "acc":
@@ -359,12 +365,23 @@ if not msgs:
             sel = "Keyingi yil uchun O'zbekiston inflyatsiyasi va so'm kursi prognozini uch ssenariyda ber."
         if c2.button("💻 Kod yozdir", use_container_width=True):
             sel = "Streamlit'da oddiy kredit kalkulyatori uchun qisqa Python kodi yoz."
+    elif S.mode == "math":
+        if c1.button("📐 Tenglama yechish", use_container_width=True):
+            sel = "x^2 - 5x + 6 = 0 tenglamani yech."
+        if c2.button("∫ Integral", use_container_width=True):
+            sel = "x*exp(-x) funksiyasining 0 dan cheksizgacha integralini hisobla."
     else:
         if c1.button("📊 Biznes tahlil", use_container_width=True):
             sel = "Kichik biznes unit-ekonomikasini misol bilan hisobla."
         if c2.button("🧮 Kredit masalasi", use_container_width=True):
             S.form = "kredit"
             st.rerun()
+
+if S.mode == "math":
+    if matematika:
+        math_level, math_answer_mode = matematika.panel(st)
+    else:
+        st.error("Mathematics AI yuklanmadi: " + MATH_XATO + ". `pip install -r requirements.txt` ni bajaring.")
 
 if S.form == "kredit":
     kredit_form()
@@ -374,6 +391,8 @@ elif S.form == "maosh":
 for m in msgs:
     with st.chat_message(m["role"], avatar=None if m["role"] == "user" else "🏛️"):
         st.markdown(m["content"])
+if S.mode == "math" and matematika:
+    matematika.show_chat_plot(st, msgs)
 
 if S.jadval:
     if S.xlsx:
@@ -415,7 +434,12 @@ if prompt:
             st.image(f, width=240)
     with st.chat_message("assistant", avatar="🏛️"):
         with st.spinner("Hisoblanmoqda..."):
-            ans = ask_ai(prompt, S.mode, doc, msgs, web_on, imgs)
+            if S.mode != "math":
+                ans = ask_ai(prompt, S.mode, doc, msgs, web_on, imgs)
+            elif matematika:
+                ans = matematika.chat_reply(st, client, prompt, math_level, math_answer_mode, msgs, imgs, doc, img_to_url)
+            else:
+                ans = "Mathematics AI yuklanmadi: " + MATH_XATO
     add(prompt + (f"\n\n🖼 Rasm yuborildi: {len(imgs)} ta" if imgs else ""), ans)
     S.jadval, S.xlsx = None, None
     st.rerun()
